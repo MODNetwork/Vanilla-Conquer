@@ -82,3 +82,29 @@ docs/RECON.md.
 modification using an EA trademark. The app name, package id and icon cannot use "Command &
 Conquer", "C&C", "Tiberian Dawn" or "Red Alert". Phase 2 step 4 (package id) and Phase 7
 (packaging) inherit this constraint. Modified versions must additionally be marked as modified.
+
+---
+
+## D-6 · 2026-07-31 · Branding scrub happens at Phase 2, not Phase 7 · attribution is never scrubbed
+
+**Decision.** Two rulings, recorded together because they are routinely confused.
+
+**(a) Timing.** The EA-mark-free app name and package id are chosen at **Phase 2 step 4**, not
+during a late "branding scrub" at Phase 7. Package id binds to the signing identity and to
+`SDL_AndroidGetInternalStoragePath()`, which is where saves and config live. Renaming after
+Gate 6 invalidates installs and save paths and forces a Gate 6 re-test. Phase 7 branding work is
+then cosmetic and additive only: icon, credits screen, README, third-party notices.
+
+**(b) Scope.** The scrub removes EA **trademarks used as product identity** (app name, package
+id, icon, listing, any affiliation claim). It never touches **copyright notices or provenance**
+(License.txt, EA copyright headers, the GPL-source-release statement, Vanilla-Conquer contributor
+credit). Stripping a copyright notice to avoid EA would trade a trademark exposure for a
+copyright violation, which is strictly worse.
+
+**Rationale.** Michael asked whether GPL attribution is absolute in this build. It is, and it
+becomes fully binding on conveyance rather than on private use. Full doctrine in docs/LICENSING.md.
+
+**Also recorded.** SDL2 and OpenAL resolve via `find_package` (verified in CMakeLists.txt) and are
+not vendored in this tree, so on Android we bundle them and their licenses attach to our APK.
+openal-soft is believed LGPL, which carries a relinking obligation distinct from GPL —
+**NEEDS VERIFICATION before Gate 7**; dynamic linking is the normal way to satisfy it.

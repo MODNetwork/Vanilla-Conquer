@@ -50,3 +50,35 @@ text; probe `wsl --status`). CMake may exist bundled inside a Visual Studio inst
 on PATH — ASSUMPTION, probe is a VS Installer component check.
 
 **Effect.** Phase 2 gains an install step ahead of the template import. No gate criteria change.
+
+---
+
+## D-4 · 2026-07-31 · Fork owner is the MODNetwork GitHub org · RATIFIED BY MICHAEL
+
+**Decision.** The fork lives at `MODNetwork/Vanilla-Conquer`. Michael ratified 2026-07-31.
+
+**Rationale.** MODNetwork is the personal umbrella org and already hosts personal-entity projects
+(fo4-mod, pricharda-gallery). It is not a MOD OS LLC identifier. The entity wall in CLAUDE.md
+governs package id, app name and signing identity, all of which remain clean.
+
+**Also ruled.** Push is held to last. The local scaffold commit is not published until Michael
+authorizes it. GPL v3 distribution obligations and the EA additional terms (see docs/RECON.md)
+trigger on conveyance, not on local commits.
+
+---
+
+## D-5 · 2026-07-31 · Upstream license VERIFIED as GPL v3 + EA additional terms
+
+**Decision.** The GPL v3 assumption carried by CLAUDE.md and the Genesis Pack is confirmed
+correct. GitHub reporting `NOASSERTION` was a classifier failure on the EA preamble, not a
+missing grant.
+
+**Rationale.** `License.txt` (714 lines) read directly in the clone. Header: *"Electronic Arts
+Inc. released only TiberianDawn.dll and RedAlert.dll and their corresponding source code under
+the GPL V3 below, with additional terms at the bottom."* The additional terms are recorded in
+docs/RECON.md.
+
+**Consequence that changes build inputs:** the EA trademark clause forbids distributing any
+modification using an EA trademark. The app name, package id and icon cannot use "Command &
+Conquer", "C&C", "Tiberian Dawn" or "Red Alert". Phase 2 step 4 (package id) and Phase 7
+(packaging) inherit this constraint. Modified versions must additionally be marked as modified.

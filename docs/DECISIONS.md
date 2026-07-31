@@ -108,3 +108,30 @@ becomes fully binding on conveyance rather than on private use. Full doctrine in
 not vendored in this tree, so on Android we bundle them and their licenses attach to our APK.
 openal-soft is believed LGPL, which carries a relinking obligation distinct from GPL —
 **NEEDS VERIFICATION before Gate 7**; dynamic linking is the normal way to satisfy it.
+
+---
+
+## D-7 · 2026-07-31 · Option B ruled — read the existing port as a map, do not merge it
+
+**Decision.** Michael ruled Option B. We keep the clean fork of true upstream
+(`TheAssemblyArmada/Vanilla-Conquer`) and treat `sandstranger:android` as reference doctrine
+only. Its 31-commit / 17-file diff is imported to `docs/reference/android-port-map.diff` and is
+never merged.
+
+**Rejected alternatives.** *Option A* (re-base on `sandstranger:android`) was faster to a running
+build but made this a fork of a fork, strained the platform-layer-only-diff law, put upstream
+merges behind a middleman, and inherited bugs their own commit messages acknowledge. *Option C*
+(install their APK, build nothing) was recorded as the honest zero-effort baseline and declined.
+
+**Rationale.** The project's schedule risk lived in Gates 2–3 (does a 1995 DOS-era C++ tree
+cross-compile for ARM64). A shipping third-party arm64-v8a APK proves it does, and a 32KB diff
+names the 17 files that resist. That risk is dead either way. Option B additionally preserves
+one-command upstream merges and full authorship of our own tree, which matters more on a project
+intended to be kept than the few hours Option A saves.
+
+**Consequence.** BUILD_PLAN.md v2.0: Phase 0 closed, Phase 3 derisked 3–6 hrs → 2–4 hrs, Phase 5
+raised 3–5 hrs → 4–7 hrs and named as the differentiated work. Total 13–25 hrs authoring.
+
+**Attribution obligation.** `android-port-map.diff` is GPL v3 work by the sandstranger project.
+Where our implementation follows it closely, credit is owed in the fork README and Gate 7
+third-party notices. Recorded in docs/LICENSING.md and docs/reference/README.md.

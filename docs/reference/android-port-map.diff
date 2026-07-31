@@ -1,0 +1,1040 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 8d094fa09..c42b981cc 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -9,7 +9,15 @@ foreach(_path_elem $ENV{CMAKE_FIND_ROOT_PATH})
+     endif()
+ endforeach()
+ 
+-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
++if (ANDROID)
++    add_definitions(-DAL_ALEXT_PROTOTYPES)
++endif()
++
++if (ANDROID)
++    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
++else ()
++    set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
++endif ()
+ include(FeatureSummary)
+ include(CheckCXXCompilerFlag)
+ 
+@@ -81,7 +89,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+ 
+ include(Compilers)
+ 
+-set(CMAKE_CXX_STANDARD 11)
++set(CMAKE_CXX_STANDARD 14)
+ set(CMAKE_CXX_STANDARD_REQUIRED ON)
+ set(CMAKE_FIND_FRAMEWORK "LAST")
+ 
+@@ -152,10 +160,18 @@ if(SDL2)
+     set(DDRAW OFF)
+ endif()
+ 
++if (ANDROID)
++    include_directories("${CMAKE_CURRENT_SOURCE_DIR}")
++    add_compile_options(-fno-lto)
++endif()
++
+ if(OPENAL)
+     find_package(OpenAL REQUIRED)
+     list(APPEND VANILLA_LIBS OpenAL::OpenAL)
+     set(DSOUND OFF)
++if (ANDROID)
++    include_directories(${OPENAL_INCLUDE_DIR}/AL)
++endif ()
+ endif()
+ 
+ if(BUILD_TESTS)
+diff --git a/common/connect.cpp b/common/connect.cpp
+index 3a3f5c46f..b7664d9fa 100644
+--- a/common/connect.cpp
++++ b/common/connect.cpp
+@@ -750,20 +750,7 @@ unsigned int ConnectionClass::Time(void)
+     unsigned int msec;
+ 
+ #ifdef WWLIB32_H
+-
+-    /*TODO: Backport WW Timer to TD. */
+-    bool TimerSystemOn = false;
+-
+-    /*------------------------------------------------------------------------
+-    If the Westwood timer system has been activated, use TickCount's value
+-    ------------------------------------------------------------------------*/
+-    if (TimerSystemOn) {
+-        //return (TickCount); // Westwood Library time
+-    }
+-    /*------------------------------------------------------------------------
+-    Otherwise, use the DOS timer
+-    ------------------------------------------------------------------------*/
+-
++    return WinTickCount.Time();
+ #else
+ 
+     /*------------------------------------------------------------------------
+diff --git a/common/debugstring.cpp b/common/debugstring.cpp
+index 2244eee85..b573b23b8 100644
+--- a/common/debugstring.cpp
++++ b/common/debugstring.cpp
+@@ -9,6 +9,10 @@
+ #include <io.h>
+ #endif
+ 
++#if ANDROID
++#include <android/log.h>
++#endif
++
+ static class DebugStateClass
+ {
+ public:
+@@ -52,9 +56,9 @@ static class DebugStateClass
+  */
+ void Debug_String_Log(unsigned level, const char* file, int line, const char* fmt, ...)
+ {
+-    static const char* levels[] = {"NONE", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"};
+     assert(level <= 6);
+-
++#ifndef ANDROID
++    static const char* levels[] = {"NONE", "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE"};
+     /* If we have a file pointer set we are logging to a file */
+     if (DebugState.File != nullptr) {
+         va_list args;
+@@ -74,6 +78,22 @@ void Debug_String_Log(unsigned level, const char* file, int line, const char* fm
+     fprintf(stderr, "\n");
+     va_end(args);
+     fflush(stderr);
++#else
++    static const int android_levels[] = {
++            ANDROID_LOG_UNKNOWN, // NONE
++            ANDROID_LOG_FATAL,   // FATAL
++            ANDROID_LOG_ERROR,   // ERROR
++            ANDROID_LOG_WARN,    // WARN
++            ANDROID_LOG_INFO,    // INFO
++            ANDROID_LOG_DEBUG,   // DEBUG
++            ANDROID_LOG_VERBOSE  // TRACE
++    };
++    const char* TAG = "VanillaConquer";
++    va_list args;
++    va_start(args, fmt);
++    __android_log_vprint(android_levels[level], TAG, fmt, args);
++    va_end(args);
++#endif
+ }
+ 
+ void Debug_String_File(const char* file)
+diff --git a/common/load.cpp b/common/load.cpp
+index b3bbb7aa4..b8961403b 100644
+--- a/common/load.cpp
++++ b/common/load.cpp
+@@ -227,6 +227,13 @@ unsigned int Load_Uncompress(char const* file, BufferClass& uncomp_buff, BufferC
+     /*======================================================================*/
+ 
+     fd = Open_File(file, READ);       // Open up the file to read from
++
++#if ANDROID
++    if (fd < 0) {
++        return 0;
++    }
++#endif
++
+     Read_File(fd, (char*)&tmp16, 2L); // Read the file size
+     Read_File(fd, uncomp_ptr, 8L);    // Read the header bytes in.
+ 
+diff --git a/common/paths_posix.cpp b/common/paths_posix.cpp
+index 195e6f4a4..75a796e9d 100644
+--- a/common/paths_posix.cpp
++++ b/common/paths_posix.cpp
+@@ -34,6 +34,13 @@
+ #endif
+ #include <inttypes.h>
+ 
++#if ANDROID
++#include <string>
++
++using namespace std;
++static string g_pathToConfigsDirectory;
++#endif
++
+ #if defined(__APPLE__)
+ #define _DARWIN_BETTER_REALPATH
+ #include <mach-o/dyld.h>
+@@ -42,6 +49,15 @@
+ #include <sys/sysctl.h>
+ #endif
+ 
++#if ANDROID
++extern "C"{
++__attribute__((used)) __attribute__((visibility("default")))
++void setPathToConfigsDirectory (const char *pathToConfigsDirectory) {
++    g_pathToConfigsDirectory = pathToConfigsDirectory;
++}
++}
++#endif
++
+ namespace
+ {
+     const std::string& User_Home()
+@@ -49,6 +65,9 @@ namespace
+         static std::string _path;
+ 
+         if (_path.empty()) {
++#if ANDROID
++            _path = g_pathToConfigsDirectory;
++#else
+             int uid = getuid();
+             const char* home_env = std::getenv("HOME");
+ 
+@@ -83,6 +102,7 @@ namespace
+ 
+                 _path = tmp;
+             }
++#endif
+         }
+ 
+         return _path;
+@@ -199,6 +219,8 @@ const char* PathsClass::User_Path()
+     if (UserPath.empty()) {
+ #ifdef __APPLE__
+         UserPath = User_Home() + "/Library/Application Support/Vanilla-Conquer";
++#elif ANDROID
++        UserPath = g_pathToConfigsDirectory;
+ #else
+         UserPath = Get_Posix_Default("XDG_CONFIG_HOME", ".config") + "/vanilla-conquer";
+ #endif
+diff --git a/common/rawfile.cpp b/common/rawfile.cpp
+index b0e052573..86438472f 100644
+--- a/common/rawfile.cpp
++++ b/common/rawfile.cpp
+@@ -472,6 +472,10 @@ int RawFileClass::Read(void* buffer, int size)
+     while (size > 0) {
+         clearerr(Handle);
+         bytesread = fread(buffer, 1, size, Handle);
++        if (bytesread == 0)
++	{
++            break;
++	}
+         if (ferror(Handle)) {
+             size -= bytesread;
+             total += bytesread;
+@@ -480,8 +484,6 @@ int RawFileClass::Read(void* buffer, int size)
+         }
+         size -= bytesread;
+         total += bytesread;
+-        if (bytesread == 0)
+-            break;
+     }
+     bytesread = total;
+ 
+diff --git a/common/settings.cpp b/common/settings.cpp
+index 3b14cfcc9..82c4d4433 100644
+--- a/common/settings.cpp
++++ b/common/settings.cpp
+@@ -2,20 +2,70 @@
+ #include "settings.h"
+ #include "ini.h"
+ #include "miscasm.h"
++#if ANDROID
++#include "SDL.h"
++#endif
+ 
+ SettingsClass Settings;
+ 
++#if ANDROID
++extern SDL_Window* window;
++static bool g_onScreenControlsActive = true;
++
++extern "C" {
++__attribute__((used)) __attribute__((visibility("default")))
++void setUseDoseModeState(const bool useDosMode) {
++    Settings.Video.DOSMode = useDosMode;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setFrameRateLimit(const int frameRateLimit) {
++    Settings.Video.FrameLimit = frameRateLimit;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setOnScreenControlsState(const bool onScreenControlsActive) {
++    g_onScreenControlsActive = onScreenControlsActive;
++    if (onScreenControlsActive) {
++        Settings.Mouse.RawInput = false;
++    }
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setMouseSensitivity(const int mouseSensitivity) {
++    Settings.Mouse.Sensitivity = mouseSensitivity;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setControllerPointerSpeed(const int controllerPointerSpeed ) {
++    Settings.Mouse.ControllerPointerSpeed = controllerPointerSpeed;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void updateRawInputState (const bool enableRawInput){
++    Settings.Mouse.RawInput = enableRawInput;
++    if (window){
++        SDL_SetRelativeMouseMode(enableRawInput ? SDL_TRUE : SDL_FALSE);
++    }
++}
++}
++#endif
++
+ SettingsClass::SettingsClass()
+ {
+     /*
+     ** Mouse settings
+     */
++#ifndef ANDROID
+     Mouse.RawInput = true;
++#else
++    Mouse.RawInput = false;
++#endif
+     Mouse.Sensitivity = 100;
++#ifndef ANDROID
+     Mouse.ControllerEnabled = false;
+-    Mouse.ControllerPointerSpeed = 10;
++#else
++    Mouse.ControllerEnabled = true;
++#endif
+     Options.MouseWheelScrolling = true;
+ 
++    Mouse.ControllerPointerSpeed = 10;
++
+     /*
+     ** Video settings
+     */
+@@ -24,12 +74,20 @@ SettingsClass::SettingsClass()
+     Video.Windowed = false;
+     Video.Width = 0;
+     Video.Height = 0;
++#ifndef ANDROID
+     Video.Boxing = true;
++#else
++    Video.Boxing = false;
++#endif
+     Video.BoxingAspectRatio = "16:10";
+     Video.FrameLimit = 120;
+     Video.InterpolationMode = 2;
+     Video.HardwareCursor = false;
++#ifndef ANDROID
+     Video.DOSMode = false;
++#else
++    Video.DOSMode = true;
++#endif
+     Video.Scaler = "nearest";
+     Video.Driver = "default";
+     Video.PixelFormat = "default";
+@@ -42,10 +100,16 @@ void SettingsClass::Load(INIClass& ini)
+     /*
+     ** Mouse settings
+     */
++#ifndef ANDROID
+     Mouse.RawInput = ini.Get_Bool("Mouse", "RawInput", Mouse.RawInput);
++#else
++    Mouse.RawInput = !g_onScreenControlsActive && ini.Get_Bool("Mouse", "RawInput", Mouse.RawInput);
++#endif
++#ifndef ANDROID
+     Mouse.Sensitivity = ini.Get_Int("Mouse", "Sensitivity", Mouse.Sensitivity);
+     Mouse.ControllerEnabled = ini.Get_Bool("Mouse", "ControllerEnabled", Mouse.ControllerEnabled);
+     Mouse.ControllerPointerSpeed = ini.Get_Int("Mouse", "ControllerPointerSpeed", Mouse.ControllerPointerSpeed);
++#endif
+     /*
+     ** Compatibility with CNCNet configuration for this feature
+     */
+@@ -58,13 +122,20 @@ void SettingsClass::Load(INIClass& ini)
+     Video.WindowWidth = ini.Get_Int("Video", "WindowWidth", Video.WindowWidth);
+     Video.WindowHeight = ini.Get_Int("Video", "WindowHeight", Video.WindowHeight);
+     Video.Windowed = ini.Get_Bool("Video", "Windowed", Video.Windowed);
++#ifndef ANDROID
+     Video.Boxing = ini.Get_Bool("Video", "Boxing", Video.Boxing);
++#else
++    Video.Boxing = false;
++#endif
+     Video.BoxingAspectRatio = ini.Get_String("Video", "BoxingAspectRatio", Video.BoxingAspectRatio);
+     Video.Width = ini.Get_Int("Video", "Width", Video.Width);
+     Video.Height = ini.Get_Int("Video", "Height", Video.Height);
++#ifndef ANDROID
+     Video.FrameLimit = ini.Get_Int("Video", "FrameLimit", Video.FrameLimit);
+     Video.HardwareCursor = ini.Get_Bool("Video", "HardwareCursor", Video.HardwareCursor);
+     Video.DOSMode = ini.Get_Bool("Video", "DOSMode", Video.DOSMode);
++    Video.FrameLimit = g_frameRateLimit;
++#endif
+     Video.Scaler = ini.Get_String("Video", "Scaler", Video.Scaler);
+     Video.Driver = ini.Get_String("Video", "Driver", Video.Driver);
+     Video.PixelFormat = ini.Get_String("Video", "PixelFormat", Video.PixelFormat);
+diff --git a/common/soundio_openal.cpp b/common/soundio_openal.cpp
+index 4f88ce1a7..741a96d2c 100644
+--- a/common/soundio_openal.cpp
++++ b/common/soundio_openal.cpp
+@@ -13,6 +13,26 @@
+ #include <al.h>
+ #include <alc.h>
+ #include <stdlib.h>
++#if ANDROID
++#include "alext.h"
++
++static ALCdevice* openALDevice;
++
++void SetMute(bool mute){
++    if (openALDevice == nullptr) {
++        return;
++    }
++
++    if( mute )
++    {
++        alcDevicePauseSOFT(openALDevice);
++    }
++    else
++    {
++        alcDeviceResumeSOFT(openALDevice);
++    }
++}
++#endif
+ 
+ enum
+ {
+@@ -126,6 +146,9 @@ bool SoundImp_Init(int bits_per_sample, bool stereo, int rate, bool reverse_chan
+ 
+         return false;
+     }
++#if ANDROID
++    openALDevice = device;
++#endif
+ 
+     OpenALContext = alcCreateContext(device, nullptr);
+     if (OpenALContext == nullptr || !alcMakeContextCurrent(OpenALContext)) {
+@@ -207,6 +230,9 @@ void SoundImp_Shutdown()
+ {
+     ALCdevice* device = alcGetContextsDevice(OpenALContext);
+ 
++#if ANDROID
++    openALDevice = nullptr;
++#endif
+     alcMakeContextCurrent(nullptr);
+     alcDestroyContext(OpenALContext);
+     alcCloseDevice(device);
+diff --git a/common/straw.cpp b/common/straw.cpp
+index 44f444ec3..5f4eab1aa 100644
+--- a/common/straw.cpp
++++ b/common/straw.cpp
+@@ -38,6 +38,7 @@
+ #include "straw.h"
+ #include <stddef.h>
+ #include <string.h>
++#include <stdio.h>
+ 
+ /***********************************************************************************************
+  * Straw::~Straw -- Destructor for a straw segment.                                            *
+diff --git a/common/video.h b/common/video.h
+index 6e9ae7378..8784fec16 100644
+--- a/common/video.h
++++ b/common/video.h
+@@ -69,7 +69,9 @@ void Toggle_Video_Fullscreen();
+ void Reset_Video_Mode();
+ unsigned Get_Free_Video_Memory();
+ void Wait_Blit();
+-
++#if ANDROID
++void Update_HWCursor_Settings();
++#endif
+ /*
+ ** Set desired cursor image in game palette.
+ */
+diff --git a/common/video_sdl2.cpp b/common/video_sdl2.cpp
+index e5ca8aac7..b44ea45d5 100644
+--- a/common/video_sdl2.cpp
++++ b/common/video_sdl2.cpp
+@@ -47,8 +47,17 @@
+ 
+ #include <SDL.h>
+ 
++#if ANDROID
++#include <string>
++using namespace std;
++
++static string g_pathToSDLControllerDB;
++static bool g_useGLES2_0 = false;
++static bool g_enableVsync = true;
++#endif
++
+ extern WWKeyboardClass* Keyboard;
+-static SDL_Window* window;
++SDL_Window* window;
+ static SDL_Renderer* renderer;
+ static SDL_Palette* palette;
+ static Uint32 pixel_format;
+@@ -119,7 +128,28 @@ Uint32 SettingsPixelFormat()
+ 
+ static void Update_HWCursor();
+ 
++#if ANDROID
++extern "C" {
++__attribute__((used)) __attribute__((visibility("default")))
++void setUseGLES2_0State(const bool useGLES2_0) {
++    g_useGLES2_0 = useGLES2_0;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setPathToSDLControllerDB (const char *pathToSDLControllerDB){
++    g_pathToSDLControllerDB = pathToSDLControllerDB;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setEnableVsyncState (const bool enableVsync){
++    g_enableVsync = enableVsync;
++}
++}
++#endif
++
++#ifndef ANDROID
+ static void Update_HWCursor_Settings()
++#else
++void Update_HWCursor_Settings()
++#endif
+ {
+     /*
+     ** Update mouse scaling settings.
+@@ -223,7 +253,7 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
+     int win_h = h;
+     int win_flags = 0;
+     Uint32 requested_pixel_format = SettingsPixelFormat();
+-
++#ifndef ANDROID
+     if (!Settings.Video.Windowed) {
+         /*
+         ** Native fullscreen if no proper width and height set.
+@@ -247,6 +277,12 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
+ 
+     window =
+         SDL_CreateWindow("Vanilla Conquer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, win_w, win_h, win_flags);
++#else
++    win_w = Settings.Video.Width = 0;
++    win_h = Settings.Video.Height = 0;
++    win_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL;
++    window = SDL_CreateWindow("Vanilla Conquer", 0, 0, 0, 0, win_flags);
++#endif
+     if (window == nullptr) {
+         DBG_ERROR("SDL_CreateWindow failed: %s", SDL_GetError());
+         Reset_Video_Mode();
+@@ -279,7 +315,17 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
+         }
+     }
+ 
++#ifndef ANDROID
+     renderer = SDL_CreateRenderer(window, renderer_index, SDL_RENDERER_TARGETTEXTURE);
++#else
++    int renderFlags = SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_ACCELERATED;
++
++    if (g_enableVsync) {
++        renderFlags |= SDL_RENDERER_PRESENTVSYNC;
++    }
++    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
++    renderer = SDL_CreateRenderer(window, renderer_index,renderFlags);
++#endif
+     if (renderer == nullptr) {
+         DBG_ERROR("SDL_CreateRenderer failed: %s", SDL_GetError());
+         Reset_Video_Mode();
+@@ -352,11 +398,41 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
+     hwcursor.Y = h / 2;
+     Update_HWCursor_Settings();
+ 
++#ifdef ANDROID
++    SDL_SetHint(SDL_HINT_TV_REMOTE_AS_JOYSTICK, "0");
++    SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, "0");
++    SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT_CORRELATE_XINPUT, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS3, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAMDECK, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_WII, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_COMBINE_JOY_CONS, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_SWITCH, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_JOY_CONS, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS4_RUMBLE, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5_RUMBLE, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_STEAM, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_GAMECUBE, "1");
++    SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI_PS5, "1");
++#endif
++
+     /*
+     ** Init gamepad.
+     */
+     if (Settings.Mouse.ControllerEnabled) {
++#ifdef ANDROID
++        SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
++        const auto pathToSdl2ControllerDb = g_pathToSDLControllerDB.c_str();
++        if (SDL_GameControllerAddMappingsFromFile(pathToSdl2ControllerDb) < 0) {
++            SDL_Log("Couldn't load mappings: %s\n", SDL_GetError());
++        } else{
++            SDL_Log("Custom controller db was loaded from: %s", pathToSdl2ControllerDb);
++        }
++#else
+         SDL_Init(SDL_INIT_GAMECONTROLLER);
++#endif
+         Keyboard->Open_Controller();
+     }
+ 
+@@ -365,6 +441,7 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
+ 
+ void Toggle_Video_Fullscreen()
+ {
++#ifndef ANDROID
+     Settings.Video.Windowed = !Settings.Video.Windowed;
+ 
+     if (!Settings.Video.Windowed) {
+@@ -380,6 +457,7 @@ void Toggle_Video_Fullscreen()
+     }
+ 
+     Update_HWCursor_Settings();
++#endif
+ }
+ 
+ void Get_Video_Scale(float& x, float& y)
+@@ -394,7 +472,7 @@ void Set_Video_Cursor_Clip(bool clipped)
+ 
+     if (window) {
+         int relative;
+-
++#ifndef ANDROID
+         if (Settings.Video.Windowed) {
+             SDL_SetWindowGrab(window, hwcursor.Clip ? SDL_TRUE : SDL_FALSE);
+             relative = SDL_SetRelativeMouseMode(
+@@ -417,7 +495,10 @@ void Set_Video_Cursor_Clip(bool clipped)
+             SDL_SetWindowGrab(window, SDL_TRUE);
+             relative = SDL_SetRelativeMouseMode(Settings.Mouse.RawInput ? SDL_TRUE : SDL_FALSE);
+         }
+-
++#else
++        SDL_SetWindowGrab(window, SDL_TRUE);
++        relative = SDL_SetRelativeMouseMode(Settings.Mouse.RawInput ? SDL_TRUE : SDL_FALSE);
++#endif
+         if (relative < 0) {
+             DBG_ERROR("Raw input not supported, disabling.");
+             Settings.Mouse.RawInput = false;
+diff --git a/common/wwkeyboard_sdl2.cpp b/common/wwkeyboard_sdl2.cpp
+index 30f174519..1152b28da 100644
+--- a/common/wwkeyboard_sdl2.cpp
++++ b/common/wwkeyboard_sdl2.cpp
+@@ -21,6 +21,10 @@
+ #include <cmath>
+ #include <SDL.h>
+ 
++#if ANDROID
++static bool touchIsActive = false;
++#endif
++
+ void Focus_Loss();
+ void Focus_Restore();
+ void Process_Network();
+@@ -37,6 +41,11 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
+     SDL_Event event;
+ 
+     while (!Is_Buffer_Full() && SDL_PollEvent(&event)) {
++#if ANDROID
++        if (event.type == SDL_WINDOWEVENT_SIZE_CHANGED) {
++            Update_HWCursor_Settings();
++        }
++#endif
+         unsigned short key;
+         switch (event.type) {
+         case SDL_QUIT:
+@@ -53,12 +62,17 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
+             }
+             break;
+         case SDL_MOUSEMOTION:
++#if ANDROID
++            touchIsActive = event.motion.which == SDL_TOUCH_MOUSEID;
++#endif
+             Move_Video_Mouse(static_cast<float>(event.motion.xrel), static_cast<float>(event.motion.yrel));
+             break;
+         case SDL_MOUSEBUTTONDOWN:
+         case SDL_MOUSEBUTTONUP: {
+             int x, y;
+-
++#if ANDROID
++            touchIsActive = event.motion.which == SDL_TOUCH_MOUSEID;
++#endif
+             switch (event.button.button) {
+             case SDL_BUTTON_LEFT:
+             default:
+@@ -71,8 +85,11 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
+                 key = VK_MBUTTON;
+                 break;
+             }
+-
++#ifndef ANDROID
+             if (Settings.Mouse.RawInput || Is_Gamepad_Active()) {
++#else
++            if (Settings.Mouse.RawInput) {
++#endif
+                 Get_Video_Mouse(x, y);
+             } else {
+                 float scale_x = 1.0f, scale_y = 1.0f;
+@@ -83,6 +100,7 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
+ 
+             Put_Mouse_Message(key, x, y, event.type == SDL_MOUSEBUTTONDOWN ? false : true);
+         } break;
++#ifndef ANDROID
+         case SDL_WINDOWEVENT:
+             switch (event.window.event) {
+             case SDL_WINDOWEVENT_EXPOSED:
+@@ -97,13 +115,18 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
+                 break;
+             }
+             break;
++#endif
+         case SDL_MOUSEWHEEL:
+-            if (event.wheel.y > 0) { // scroll up
++#if ANDROID
++                touchIsActive = event.motion.which == SDL_TOUCH_MOUSEID;
++#endif
++                if (event.wheel.y > 0) { // scroll up
+                 Put_Key_Message(VK_MOUSEWHEEL_UP, false);
+             } else if (event.wheel.y < 0) { // scroll down
+                 Put_Key_Message(VK_MOUSEWHEEL_DOWN, false);
+             }
+             break;
++#ifndef ANDROID
+         case SDL_CONTROLLERDEVICEREMOVED:
+             if (GameController != nullptr) {
+                 const SDL_GameController* removedController = SDL_GameControllerFromInstanceID(event.jdevice.which);
+@@ -118,11 +141,27 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
+                 GameController = SDL_GameControllerOpen(event.jdevice.which);
+             }
+             break;
++#else
++            case SDL_JOYDEVICEADDED:
++            case SDL_JOYDEVICEREMOVED:
++            case SDL_CONTROLLERDEVICEADDED:
++            case SDL_CONTROLLERDEVICEREMOVED:
++            case SDL_CONTROLLERDEVICEREMAPPED:
++                Close_Controller();
++                Open_Controller();
++                break;
++#endif
+         case SDL_CONTROLLERAXISMOTION:
++#if ANDROID
++            touchIsActive = false;
++#endif
+             Handle_Controller_Axis_Event(event.caxis);
+             break;
+         case SDL_CONTROLLERBUTTONDOWN:
+         case SDL_CONTROLLERBUTTONUP:
++#if ANDROID
++            touchIsActive = false;
++#endif
+             Handle_Controller_Button_Event(event.cbutton);
+             break;
+         }
+@@ -134,16 +173,47 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
+ 
+ bool WWKeyboardClassSDL2::Is_Gamepad_Active()
+ {
++#ifndef ANDROID
+     return GameController != nullptr;
++#else
++    return GameController != nullptr && !touchIsActive;
++#endif
+ }
+ 
+ void WWKeyboardClassSDL2::Open_Controller()
+ {
++#ifndef ANDROID
+     for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+         if (SDL_IsGameController(i)) {
+             GameController = SDL_GameControllerOpen(i);
+         }
+     }
++#else
++    SDL_GameControllerUpdate();
++
++    const int numJoysticks = SDL_NumJoysticks();
++    int virtualControllerIndex = -1;
++
++    for (int i = 0; i < numJoysticks; i++) {
++        if(SDL_JoystickIsVirtual(i)){
++            virtualControllerIndex = i;
++            break;
++        }
++    }
++
++    for (int joyIdx = 0; joyIdx < numJoysticks; ++joyIdx) {
++        if (virtualControllerIndex!=-1 && joyIdx!=virtualControllerIndex){
++            continue;
++        }
++        if (SDL_IsGameController(joyIdx)) {
++            GameController = SDL_GameControllerOpen(joyIdx);
++            if (GameController != nullptr) {
++                break;
++            }
++        }
++    }
++
++#endif
+ }
+ 
+ void WWKeyboardClassSDL2::Close_Controller()
+diff --git a/redalert/CMakeLists.txt b/redalert/CMakeLists.txt
+index 60a3e8545..dc6b6e1cc 100644
+--- a/redalert/CMakeLists.txt
++++ b/redalert/CMakeLists.txt
+@@ -218,9 +218,11 @@ if(BUILD_REMASTERRA)
+ endif()
+ 
+ if(BUILD_VANILLARA)
++if (NOT ANDROID)
+     include(BuildIcons)
+     # Create the custom command for generating the ico file for windows.
+     make_icon(INPUT "${CMAKE_SOURCE_DIR}/resources/vanillara_icon.svg" OUTPUT VANILLARA_ICON)
++endif ()
+ 
+     if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
+         # Generate windows version info.
+@@ -238,10 +240,14 @@ if(BUILD_VANILLARA)
+         )
+     endif()
+ 
++if (NOT ANDROID)
+     # A target must include the icon for the custom command to run.
+     add_executable(VanillaRA ${REDALERT_SRC} ${REDALERT_NET_SRC} ${REDALERT_HEADERS} ${VANILLARA_RC} ${VANILLARA_ICON})
++else ()
++    add_library(VanillaRA SHARED ${REDALERT_SRC} ${REDALERT_NET_SRC} ${REDALERT_HEADERS} ${VANILLARA_RC})
++endif ()
+ 
+-    if(MAKE_BUNDLE)
++if(MAKE_BUNDLE)
+         set_source_files_properties(${VANILLARA_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+         set_target_properties(VanillaRA PROPERTIES
+             MACOSX_BUNDLE True
+@@ -256,7 +262,11 @@ if(BUILD_VANILLARA)
+ 
+     target_compile_definitions(VanillaRA PUBLIC $<$<CONFIG:Debug>:_DEBUG> ${VANILLA_DEFS})
+     target_include_directories(VanillaRA PUBLIC ${CMAKE_SOURCE_DIR} .)
++if (NOT ANDROID)
+     target_link_libraries(VanillaRA commonv ${VANILLA_LIBS} ${STATIC_LIBS})
++else ()
++    target_link_libraries(VanillaRA commonv ${VANILLA_LIBS} ${STATIC_LIBS} log)
++endif ()
+     set_target_properties(VanillaRA PROPERTIES OUTPUT_NAME vanillara)
+     if(MAP_EDITORRA)
+         target_compile_definitions(VanillaRA PUBLIC INTERNAL_VERSION)
+diff --git a/redalert/options.cpp b/redalert/options.cpp
+index 2b84e6700..ee9427cdd 100644
+--- a/redalert/options.cpp
++++ b/redalert/options.cpp
+@@ -68,6 +68,16 @@ char const* const OptionsClass::HotkeyName = "SDLHotkeys";
+ char const* const OptionsClass::HotkeyName = "WinHotkeys";
+ #endif
+ 
++#if ANDROID
++static int g_gameSpeed = 3;
++extern "C"{
++__attribute__((used)) __attribute__((visibility("default")))
++void setGameSpeed(const int gameSpeed) {
++    g_gameSpeed = gameSpeed;
++}
++}
++#endif
++
+ /***********************************************************************************************
+  * OptionsClass::OptionsClass -- The default constructor for the options class.                *
+  *                                                                                             *
+diff --git a/redalert/startup.cpp b/redalert/startup.cpp
+index 0c4320aa8..866569be6 100644
+--- a/redalert/startup.cpp
++++ b/redalert/startup.cpp
+@@ -59,6 +59,15 @@ HINSTANCE ProgramInstance;
+ #else
+ #include <unistd.h>
+ #endif
++
++#if ANDROID
++#include "SDL_main.h"
++#include <string>
++
++using namespace std;
++static string g_pathToResources;
++#endif
++
+ extern bool RA95AlreadyRunning;
+ void Check_Use_Compressed_Shapes(void);
+ void Read_Setup_Options(RawFileClass* config_file);
+@@ -275,8 +284,15 @@ int DLL_Startup(const char* command_line_in)
+ }
+ #endif //REMASTER_BUILD
+ 
++#ifdef ANDROID
++int SDL_main(int argc, char **argv)
++#else
+ int main(int argc, char* argv[])
++#endif
+ {
++#if ANDROID
++    chdir(g_pathToResources.c_str());
++#endif
+     UtfArgs args(argc, argv);
+     WWDebugString("RA95 - Starting up.\n");
+ 
+@@ -766,3 +782,37 @@ void Get_OS_Version(void)
+     }
+ #endif //(0)
+ }
++
++#if ANDROID
++extern void SetMute(bool mute);
++extern void Focus_Restore(void);
++extern void Focus_Loss(void);
++extern "C"{
++__attribute__((used)) __attribute__((visibility("default")))
++void onNativeResume() {
++    SetMute(false);
++    Focus_Restore();
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void onNativePause() {
++    SetMute(true);
++    Focus_Loss();
++}
++__attribute__((used)) __attribute__((visibility("default")))
++bool needToShowScreenControls() {
++    return true;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++bool needToInvokeMouseButtonsEvents(){
++    return true;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++bool needToReInitGameControllers (){
++    return false;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setPathToResources (const char *pathToResource) {
++    g_pathToResources = pathToResource;
++}
++}
++#endif
+diff --git a/tiberiandawn/CMakeLists.txt b/tiberiandawn/CMakeLists.txt
+index a26cf467b..b1155d105 100644
+--- a/tiberiandawn/CMakeLists.txt
++++ b/tiberiandawn/CMakeLists.txt
+@@ -194,9 +194,11 @@ if(BUILD_REMASTERTD)
+ endif()
+ 
+ if(BUILD_VANILLATD)
++if (NOT ANDROID)
+     include(BuildIcons)
+     # Create the custom command for generating the ico/icns files for display in the OS.
+     make_icon(INPUT "${CMAKE_SOURCE_DIR}/resources/vanillatd_icon.svg" OUTPUT VANILLATD_ICON)
++endif ()
+ 
+     if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
+         # Generate windows version info.
+@@ -214,10 +216,14 @@ if(BUILD_VANILLATD)
+         )
+     endif()
+ 
++if (NOT ANDROID)
+     # A target must include the icon for the custom command to run.
+     add_executable(VanillaTD ${TIBDAWN_SRC} ${TIBDAWN_NET_SRC} ${TIBDAWN_HEADERS} ${VANILLATD_RC} ${VANILLATD_ICON})
++else ()
++    add_library(VanillaTD SHARED ${TIBDAWN_SRC} ${TIBDAWN_NET_SRC} ${TIBDAWN_HEADERS} ${VANILLATD_RC})
++endif ()
+ 
+-    if(MAKE_BUNDLE)
++if(MAKE_BUNDLE)
+         set_source_files_properties(${VANILLATD_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+         set_target_properties(VanillaTD PROPERTIES
+             MACOSX_BUNDLE True
+@@ -232,7 +238,11 @@ if(BUILD_VANILLATD)
+ 
+     target_compile_definitions(VanillaTD PUBLIC $<$<CONFIG:Debug>:_DEBUG> ${VANILLA_DEFS} MEGAMAPS)
+     target_include_directories(VanillaTD PUBLIC ${CMAKE_SOURCE_DIR} .)
++if (NOT ANDROID)
+     target_link_libraries(VanillaTD commonv ${VANILLA_LIBS} ${STATIC_LIBS})
++else ()
++    target_link_libraries(VanillaTD commonv ${VANILLA_LIBS} ${STATIC_LIBS} log)
++endif ()
+     set_target_properties(VanillaTD PROPERTIES OUTPUT_NAME vanillatd)
+     if(MAP_EDITORTD)
+         target_compile_definitions(VanillaTD PUBLIC INTERNAL_VERSION)
+diff --git a/tiberiandawn/startup.cpp b/tiberiandawn/startup.cpp
+index 8536cc915..80038e029 100644
+--- a/tiberiandawn/startup.cpp
++++ b/tiberiandawn/startup.cpp
+@@ -51,6 +51,13 @@ HINSTANCE ProgramInstance;
+ #else
+ #include <unistd.h>
+ #endif
++#if ANDROID
++#include "SDL_main.h"
++#include <string>
++
++using namespace std;
++static string g_pathToResources;
++#endif
+ 
+ extern int ReadyToQuit;
+ void Read_Setup_Options(RawFileClass* config_file);
+@@ -198,8 +205,15 @@ int DLL_Startup(const char* command_line_in)
+ }
+ #endif // REMASTER_BUILD
+ 
++#ifdef ANDROID
++int SDL_main(int argc, char **argv)
++#else
+ int main(int argc, char** argv)
++#endif
+ {
++#if ANDROID
++    chdir(g_pathToResources.c_str());
++#endif
+     UtfArgs args(argc, argv);
+     CCDebugString("C&C95 - Starting up.\n");
+ 
+@@ -208,7 +222,7 @@ int main(int argc, char** argv)
+         printf("Zuwenig Hauptspeicher verf?gbar.\n");
+ #else
+ #ifdef FRENCH
+-        printf("M‚moire vive (RAM) insuffisante.\n");
++        printf("Mï¿½moire vive (RAM) insuffisante.\n");
+ #else
+         printf("Insufficient RAM available.\n");
+ #endif
+@@ -612,3 +626,37 @@ void Read_Setup_Options(RawFileClass* config_file)
+     VideoBackBufferAllowed = ini.Get_Bool("Options", "VideoBackBuffer", true);
+     AllowHardwareBlitFills = ini.Get_Bool("Options", "HardwareFills", true);
+ }
++
++#if ANDROID
++extern void SetMute(bool mute);
++extern void Focus_Restore(void);
++extern void Focus_Loss(void);
++extern "C"{
++__attribute__((used)) __attribute__((visibility("default")))
++void onNativeResume() {
++    SetMute(false);
++    Focus_Restore();
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void onNativePause() {
++    SetMute(true);
++    Focus_Loss();
++}
++__attribute__((used)) __attribute__((visibility("default")))
++bool needToShowScreenControls() {
++    return true;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++bool needToInvokeMouseButtonsEvents(){
++    return true;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++bool needToReInitGameControllers (){
++    return false;
++}
++__attribute__((used)) __attribute__((visibility("default")))
++void setPathToResources (const char *pathToResource) {
++    g_pathToResources = pathToResource;
++}
++}
++#endif
+\ No newline at end of file

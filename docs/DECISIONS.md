@@ -135,3 +135,47 @@ raised 3–5 hrs → 4–7 hrs and named as the differentiated work. Total 13–
 **Attribution obligation.** `android-port-map.diff` is GPL v3 work by the sandstranger project.
 Where our implementation follows it closely, credit is owed in the fork README and Gate 7
 third-party notices. Recorded in docs/LICENSING.md and docs/reference/README.md.
+
+---
+
+## D-8 · 2026-07-31 · Gate 1 baseline uses freeware Gold CD data, not the Remastered install
+
+**Decision.** The desktop baseline and all gate testing use the **freeware C&C Gold CD release**
+(GDI + NOD ISOs) for Tiberian Dawn. The host's C&C Remastered Collection is NOT the data source.
+
+**Supersedes.** `docs/RECON-SEED.md` asset pre-clearance, which assumed the Remastered legacy
+`.MIX` trees were usable. That assumption was labelled ASSUMPTION, probed, and **found false.**
+
+**Evidence.** Upstream README in-tree: *"While it is possible to use the game data from the
+Remastered Collection, The Ultimate Collection or The First Decade they are currently not
+supported."* And: *"Any repackaged version ... is not supported."* Supported sources named are the
+freeware Gold CD release for TD and the freeware CD release or official demo for RA.
+
+**Rationale.** "Unsupported" here means the documented failure mode is data-related bugs —
+invisible objects, unit-specific crashes. Gate 1 exists to be the reference implementation every
+later bug is compared against. Building it on unsupported data makes every Android bug ambiguous
+between "our port" and "the data", which destroys the baseline's diagnostic purpose before Phase 3
+begins.
+
+**Michael's action.** Obtain the freeware TD Gold GDI + NOD ISOs (links in upstream README).
+Agent does not download game data.
+
+---
+
+## D-9 · 2026-07-31 · Desktop toolchain: MSVC preferred over MinGW for Gate 1
+
+**Decision.** Gate 1's Windows-native build targets **MSVC**, not the MinGW g++ installed this
+session.
+
+**Rationale.** Installed without admin this session: CMake 4.4.1, Ninja 1.13.2, g++ 15.2.0
+(MinGW-w64), SDL2 (scoop). But scoop's SDL2 ships **MSVC import libraries only** (`SDL2.lib`,
+`SDL2main.lib`, no mingw `.a`). Linking MSVC import libs from MinGW is fragile and would be a
+workaround rather than a fix, which CLAUDE.md forbids. Installing MSVC Build Tools makes the
+already-installed SDL2 match natively.
+
+**Also ruled.** WSL2 remains the **compile canary only** (D-1), not the playtest loop. This host is
+Windows 10 22H2 build 19045; WSLg exists on 19044+ but GUI-plus-audio playtesting under WSLg on
+Windows 10 is less reliable than on Windows 11. The playtest loop stays Windows-native.
+
+**Blocked on.** Both MSVC Build Tools and WSL2 require elevation. Per CLAUDE.md, installer and SDK
+setup runs in a plain PowerShell window, never a pane. Handed to Michael.

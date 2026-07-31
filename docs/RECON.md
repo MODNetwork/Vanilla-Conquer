@@ -150,18 +150,45 @@ and packaging a dedicated single-game app rather than a 15-game launcher.
 
 ---
 
-## Asset source — Phase 0 step 4
+## Asset source — Phase 0 step 4 · **ASSUMPTION KILLED 2026-07-31**
 
-Carried from `docs/RECON-SEED.md`. Host holds a licensed C&C Remastered Collection at
-`C:\Program Files\EA Games\CnCRemastered\DATA\CNCDATA\` containing the original legacy `.MIX`
-trees for **both** TIBERIAN_DAWN and RED_ALERT (verified by directory listing 2026-07-31).
+The `docs/RECON-SEED.md` pre-clearance was **WRONG** and is superseded. Upstream's own README
+(read in-tree, lines 108–116) states:
 
-**Still ASSUMPTION:** that Vanilla-Conquer consumes exactly this legacy MIX set. Not yet checked
-against the upstream asset table. Probe remains open.
+> For Tiberian Dawn the final freeware **Gold CD release** (GDI / NOD ISOs on ModDB) works fine.
+> For Red Alert the freeware **CD release** works fine as well. The official Red Alert demo is
+> also fully playable.
+> **"While it is possible to use the game data from the Remastered Collection, The Ultimate
+> Collection or The First Decade they are currently _not_ supported."**
+> "Any repackaged version that you may already have from any unofficial source is _not_ supported."
+
+The host's C&C Remastered Collection legacy `.MIX` trees are therefore an **unsupported** data
+source, despite physically containing files with the right names.
+
+### Why this matters more for a port than for normal play
+
+"Not supported" does not mean "will not run." It means upstream will not accept bug reports
+against it, and the README specifically warns the failure mode is **data-related bugs: invisible
+objects, crashes on particular units.**
+
+Gate 1's entire purpose is to be the reference implementation *"every later bug gets compared
+against."* A baseline built on unsupported data is a **poisoned baseline**: when something breaks
+on Android at Gate 4 or 5, we cannot distinguish "our port broke it" from "the data was never
+supported." That destroys the diagnostic value of the desktop baseline and violates the
+one-variable-per-attempt discipline before we have even started.
+
+### Ruling for the plan
+
+**Use the freeware Gold CD release for TD.** EA released it as freeware in 2007. It is free,
+legal, supported upstream, and keeps the baseline diagnostic. The Remastered install stays on the
+machine as a licensed fallback for comparison only, never as the Gate 1 data source.
+
+Red Alert (post-Gate-7 per D-2) uses the freeware RA CD release or the official RA demo.
+
+**ACTION REQUIRED (Michael):** obtain the freeware TD Gold GDI + NOD ISOs. Links are in the
+upstream README. Downloading game data is Michael's action, not the agent's.
 
 No asset has entered the repo. The asset wall holds.
-
----
 
 ## Reference doctrine — Phase 0 step 3
 

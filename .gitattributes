@@ -4,3 +4,24 @@
 *.h     eol=lf
 *.asm   eol=lf
 *.inc   eol=lf
+
+# --- cnc-td-android additions (Windows host repo hygiene, CLAUDE.md law) ---
+*.sh        eol=lf
+*.cmake     eol=lf
+*.bash      eol=lf
+*.py        eol=lf
+*.pl        eol=lf
+gradlew     eol=lf
+*.gradle    eol=lf
+*.properties eol=lf
+
+gradlew.bat eol=crlf
+*.cmd       eol=crlf
+*.bat       eol=crlf
+
+*.png binary
+*.jpg binary
+*.mix binary
+*.MIX binary
+*.keystore binary
+*.jks binary

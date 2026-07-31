@@ -2,3 +2,41 @@
 /CMakeUserPresets.json
 /.cache
 /.vscode
+
+# --- cnc-td-android additions ---
+
+# Windows core.ignorecase=true makes upstream's /build* swallow BUILD_PLAN.md.
+# Negation must sit above the asset/build blocks. Verified 2026-07-31 via git check-ignore.
+!/BUILD_PLAN.md
+
+# ASSET WALL: game data never enters this repo
+/assets/
+/data/
+/DATA/
+/game-data/
+*.mix
+*.MIX
+*.meg
+*.MEG
+*.vqa
+*.VQA
+*.aud
+*.AUD
+
+# SIGNING WALL
+*.keystore
+*.jks
+local.properties
+keystore.properties
+
+# ANDROID BUILD OUTPUTS
+.gradle/
+/android/.cxx/
+/android/app/build/
+*.apk
+*.aab
+/out/
+/cmake-build-*/
+
+# GATE EVIDENCE (temp files, not repo content)
+gate*_evidence.txt

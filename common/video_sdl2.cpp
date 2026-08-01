@@ -149,6 +149,33 @@ static void Update_HWCursor_Settings()
         std::string arH;
 
         /*
+        ** "auto" derives the ratio from the panel we are actually on, rather
+        ** than a value baked in at build time. This matters on Android where
+        ** one binary meets many aspect ratios, and especially on a foldable
+        ** where the panel changes mid-session (D-14) - the ratio is recomputed
+        ** on every SDL_WINDOWEVENT_SIZE_CHANGED, so opening the device
+        ** re-fits the image with no user action.
+        **
+        ** Set BoxingAspectRatio=auto in CONQUER.INI to fill the display.
+        ** Set BoxingAspectRatio=16:10 for the game's native proportions.
+        ** Neither requires a rebuild.
+        */
+        if (Settings.Video.BoxingAspectRatio == "auto" || Settings.Video.BoxingAspectRatio == "AUTO") {
+            if (win_h > 0) {
+                ar = (float)win_w / (float)win_h;
+            }
+
+            render_dst.w = win_w;
+            render_dst.h = win_h;
+            render_dst.x = 0;
+            render_dst.y = 0;
+
+            Set_Video_Cursor_Clip(hwcursor.Clip);
+            Update_HWCursor();
+            return;
+        }
+
+        /*
         ** If we don't have a valid string for aspect ratio, default back to 4:3.
         */
         if (colonPos == std::string::npos) {

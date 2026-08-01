@@ -23,6 +23,21 @@
 #include <vector>
 #include <libgen.h>
 
+#ifdef __ANDROID__
+// SDL2 is already linked into the engine on Android and exposes the two
+// sandbox paths directly from C, so no JNI plumbing or exported setter is
+// required:
+//   SDL_AndroidGetInternalStoragePath() -> /data/data/<pkg>/files
+//       app-private, always writable. Config and saves live here.
+//   SDL_AndroidGetExternalStoragePath() -> /sdcard/Android/data/<pkg>/files
+//       app-private but reachable over adb push and by a file manager, which
+//       is what the Phase 4 asset-supply procedure requires.
+// Without this the engine falls back to Linux desktop defaults and resolves
+// /system/share/vanillatd and /data/.config/..., neither of which an Android
+// app may touch.
+#include <SDL_system.h>
+#endif
+
 #if defined(__linux__)
 #include <linux/limits.h>
 #else
@@ -49,6 +64,12 @@ namespace
         static std::string _path;
 
         if (_path.empty()) {
+#ifdef __ANDROID__
+            // There is no HOME and no passwd entry inside the app sandbox.
+            const char* internal = SDL_AndroidGetInternalStoragePath();
+            _path = internal ? internal : ".";
+            return _path;
+#else
             int uid = getuid();
             const char* home_env = std::getenv("HOME");
 
@@ -83,6 +104,7 @@ namespace
 
                 _path = tmp;
             }
+#endif /* __ANDROID__ */
         }
 
         return _path;
@@ -179,12 +201,35 @@ const char* PathsClass::Program_Path()
 const char* PathsClass::Data_Path()
 {
     if (DataPath.empty()) {
+#ifdef __ANDROID__
+        // Game data (the MIX files) is user-supplied and never shipped in the
+        // APK - the asset wall is a licence requirement, not hygiene. The
+        // external files dir is app-private yet reachable via:
+        //     adb push *.MIX /sdcard/Android/data/<pkg>/files/
+        // Deriving it from ProgramPath is meaningless here: argv[0] is
+        // 'app_process' (the zygote), which is why realpath() failed.
+        const char* external = SDL_AndroidGetExternalStoragePath();
+
+        if (external != nullptr) {
+            DataPath = external;
+        } else {
+            // No external storage mounted; fall back to the private dir so the
+            // engine still has a real, readable location rather than /system.
+            const char* internal = SDL_AndroidGetInternalStoragePath();
+            DataPath = internal ? internal : ".";
+            DBG_WARN("Android: external storage unavailable, using internal for game data");
+        }
+
+        DBG_INFO("Android: game data path is '%s'", DataPath.c_str());
+        return DataPath.c_str();
+#else
         if (ProgramPath.empty()) {
             // Init the program path first if it hasn't been done already.
             Program_Path();
         }
 
         DataPath = ProgramPath.substr(0, ProgramPath.find_last_of("/")) + SEP + "share";
+#endif
 
         if (!Suffix.empty()) {
             DataPath += SEP + Suffix;
@@ -199,6 +244,11 @@ const char* PathsClass::User_Path()
     if (UserPath.empty()) {
 #ifdef __APPLE__
         UserPath = User_Home() + "/Library/Application Support/Vanilla-Conquer";
+#elif defined(__ANDROID__)
+        // Config and saves: app-private internal storage, always writable,
+        // survives across launches and is wiped only on uninstall.
+        UserPath = User_Home();
+        DBG_INFO("Android: user data path is '%s'", UserPath.c_str());
 #else
         UserPath = Get_Posix_Default("XDG_CONFIG_HOME", ".config") + "/vanilla-conquer";
 #endif

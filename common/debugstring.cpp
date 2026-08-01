@@ -9,6 +9,15 @@
 #include <io.h>
 #endif
 
+#ifdef __ANDROID__
+// Android discards stderr. Engine diagnostics must go through the platform
+// logger or they are simply lost, which leaves the port debuggable only by
+// guesswork. Tag is VCTD per CLAUDE.md; capture with:
+//     adb logcat -s VCTD SDL -d > gate<N>_evidence.txt
+#include <android/log.h>
+#define VCTD_TAG "VCTD"
+#endif
+
 static class DebugStateClass
 {
 public:
@@ -66,6 +75,26 @@ void Debug_String_Log(unsigned level, const char* file, int line, const char* fm
         fflush(DebugState.File);
     }
 
+#ifdef __ANDROID__
+    /* stderr is discarded on Android; route through the platform logger.
+       Engine levels: 0 NONE 1 FATAL 2 ERROR 3 WARN 4 INFO 5 DEBUG 6 TRACE */
+    static const int android_prio[] = {
+        ANDROID_LOG_INFO,  /* NONE  */
+        ANDROID_LOG_FATAL, /* FATAL */
+        ANDROID_LOG_ERROR, /* ERROR */
+        ANDROID_LOG_WARN,  /* WARN  */
+        ANDROID_LOG_INFO,  /* INFO  */
+        ANDROID_LOG_DEBUG, /* DEBUG */
+        ANDROID_LOG_VERBOSE /* TRACE */
+    };
+
+    {
+        va_list args;
+        va_start(args, fmt);
+        __android_log_vprint(android_prio[level], VCTD_TAG, fmt, args);
+        va_end(args);
+    }
+#else
     /* Don't print file and line numbers to stderr to avoid clogging it up with too much info */
     va_list args;
     fprintf(stderr, "%-5s: ", levels[level]);
@@ -74,6 +103,7 @@ void Debug_String_Log(unsigned level, const char* file, int line, const char* fm
     fprintf(stderr, "\n");
     va_end(args);
     fflush(stderr);
+#endif
 }
 
 void Debug_String_File(const char* file)

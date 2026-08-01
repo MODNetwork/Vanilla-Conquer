@@ -452,3 +452,33 @@ code that samples geometry once at init and caches it will be wrong for the firs
 regions and integer scaling must all derive from a live query on `SDL_WINDOWEVENT_SIZE_CHANGED`,
 never from a value captured at startup. A lifecycle transition also fired during launch, so the
 resume path is exercised before the first frame is even presented.
+
+---
+
+## GATE 2 · PASS · 2026-08-01 (Michael)
+
+**Report:** *"green screen worked across open and close AND exit and reopen"*
+
+**Corroborating evidence** (`adb logcat -s VCTD -d`):
+
+```
+VCTD: gate2: alive, 99600 frames presented
+VCTD: gate2: SIZE_CHANGED -> renderer output now 1080x2424
+VCTD: gate2: lifecycle WILLENTERBACKGROUND
+VCTD: gate2: lifecycle DIDENTERBACKGROUND
+```
+
+**PID 28048 throughout, 99,600 frames.** The process never restarted across backgrounding and
+return — it kept rendering continuously rather than being killed and recreated. That is a stronger
+result than the gate required.
+
+**Gate 2 criteria, all met:**
+
+| Criterion | Result |
+|---|---|
+| Colored-screen APK installs via `adb install` | PASS |
+| Launches on device | PASS (PID confirmed) |
+| Lifecycle survives home/resume | PASS (same PID, uninterrupted frame counter) |
+| `docs/TOOLCHAIN.md` filled and committed | PASS |
+
+Phase 3 is unblocked.

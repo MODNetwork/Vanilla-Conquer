@@ -40,3 +40,4 @@ keystore.properties
 
 # GATE EVIDENCE (temp files, not repo content)
 gate*_evidence.txt
+build-win/  

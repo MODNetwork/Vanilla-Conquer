@@ -199,3 +199,41 @@ symptom would have appeared on-device in Phase 3 where debugging is an order of 
 
 **Also ruled.** The canary clones from the local Windows repo, not from GitHub, so it tracks our
 scaffold commits (currently unpushed) rather than a stale fork state.
+
+---
+
+## D-11 · 2026-08-01 · Windows icon generation disabled — upstream bug, cosmetic scope
+
+**Decision.** The Windows build configures with
+`-DImageMagick_magick_EXECUTABLE=IGNORE -DImageMagick_convert_EXECUTABLE=IGNORE`, which makes
+`make_icon()` no-op. `vanillatd.exe` ships with a generic program icon on this host.
+
+**Upstream bug found.** `cmake/BuildIcons.cmake` does:
+
+```cmake
+find_program(ImageMagick_magick_EXECUTABLE magick)
+if(ImageMagick_magick_EXECUTABLE) ... else()
+    find_program(ImageMagick_convert_EXECUTABLE convert)   # <-- unqualified "convert"
+```
+
+On any Windows machine without ImageMagick, `convert` resolves to **`C:\Windows\System32\convert.exe`**,
+the NTFS filesystem conversion utility. CMake then treats it as ImageMagick and feeds it image
+arguments, producing `Invalid Parameter - none` and build failure with exit code 4. This is a real
+upstream defect worth reporting to TheAssemblyArmada; it is not caused by anything we changed.
+
+**Why not simply install ImageMagick.** It was installed (scoop, 7.1.2-29) and still failed:
+first `rsvg-convert` delegate missing, then `RegistryKeyLookupFailed 'CoderModulesPath'` (portable
+build, no registry), then after pointing `MAGICK_CODER_MODULE_PATH` at the real `modules\coders`
+directory, `unable to load module IM_MOD_RL_svg_.dll: The specified module could not be found`
+(the coder's own dependent DLLs do not resolve). Four attempts, same class of failure.
+
+**Stall declared per Agent Law 3.8** and approach switched rather than attempting a fifth fix.
+
+**Scope justification.** The icon is cosmetic. Upstream's own README states icons are optional
+("otherwise you will end up with generic 'program' icons"). It has no bearing on Gate 1
+("TD runs on the Windows host"), and Android launcher icons are a separate Phase 7 asset entirely.
+`make_icon` sets `VANILLATD_ICON` only when ImageMagick is found, and `add_executable` simply
+receives one fewer argument when it is unset — so this produces **zero diff against upstream**.
+
+**Revisit at.** Phase 7, only if a Windows release build with a proper icon is wanted. The Android
+icon path does not depend on this.

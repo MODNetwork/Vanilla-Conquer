@@ -113,6 +113,54 @@ segfault. Full no-asset code path is NOT yet characterised — output was piped 
 no audio device exists in this headless context, so `EXIT_CODE=0` reflects the pipe, not the game.
 Asset-missing behaviour is properly a Gate 3 criterion and is re-tested there.
 
+### Windows native (Gate 1 playtest loop) — BUILDS 2026-08-01
+
+| Component | Version / path |
+|---|---|
+| MSVC | **19.44.35228.0** (Build Tools 2022, VC\Tools\MSVC\14.44.35207) |
+| Windows SDK | 10.0.26100.0 |
+| CMake | 4.4.1 (scoop) |
+| Generator | **Visual Studio 17 2022, -A x64** |
+| SDL2 | 2.x, `C:/Users/mprit/scoop/apps/sdl2/current` (MSVC import libs) |
+| OpenAL | **NOT INSTALLED — built with `-DOPENAL=OFF`** |
+
+Working configure line:
+
+```
+cmake -S C:\DEV\cnc-td-android -B C:\DEV\cnc-td-android\build-win ^
+  -G "Visual Studio 17 2022" -A x64 ^
+  -DBUILD_VANILLATD=ON -DBUILD_VANILLARA=OFF -DNETWORKING=OFF ^
+  -DSDL2=ON -DOPENAL=OFF ^
+  -DSDL2_ROOT_DIR=C:/Users/mprit/scoop/apps/sdl2/current ^
+  -DImageMagick_magick_EXECUTABLE=IGNORE -DImageMagick_convert_EXECUTABLE=IGNORE
+```
+
+Artifact: `build-win/RelWithDebInfo/vanillatd.exe` — 1,314,816 bytes, **machine x64**, Windows GUI
+subsystem, with `vanillatd.pdb`. `SDL2.dll` staged alongside. Launches without a missing-DLL
+failure and exits cleanly; behaviour beyond that is uncharacterised until game data is present.
+
+**The Visual Studio generator is used deliberately instead of Ninja.** It lets CMake locate MSVC
+itself, so no `vcvars64.bat` call and no `%PATH%` expansion is required — see the host defect below.
+
+### HOST DEFECT — malformed Windows PATH entry
+
+`%PATH%` on this machine contains an entry with a stray trailing double-quote:
+
+```
+C:\Program Files\GitHub CLI"
+```
+
+Any script doing `set "PATH=...;%PATH%"` unbalances its quoting and cmd then fails parsing with
+`\Microsoft was unexpected at this time.` This burned three build-script attempts. Not fixed
+(out of project scope, and it is Michael's environment) — worked around by never expanding
+`%PATH%` and by calling `cmake.exe` at its absolute path. **Worth Michael repairing separately.**
+
+### Known-good workarounds recorded
+
+- `.cmd` wrapper scripts written by tooling did not execute (exit 255, no output). Build commands
+  are issued as single command lines instead. `.sh` scripts for WSL work fine after
+  `sed -i 's/\r$//'`.
+
 ### Package managers available
 
 winget (present), scoop (present, in use), choco (absent).

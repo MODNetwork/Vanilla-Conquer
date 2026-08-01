@@ -224,6 +224,17 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
     int win_flags = 0;
     Uint32 requested_pixel_format = SettingsPixelFormat();
 
+#ifdef __ANDROID__
+    /*
+    ** Android has no window manager and no windowed mode. Always take the whole
+    ** display: FULLSCREEN_DESKTOP with 0x0 means "whatever the display is",
+    ** which is also the only correct answer on a foldable where the size
+    ** changes underneath us (D-14).
+    */
+    win_w = Settings.Video.Width = 0;
+    win_h = Settings.Video.Height = 0;
+    win_flags |= SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL;
+#else
     if (!Settings.Video.Windowed) {
         /*
         ** Native fullscreen if no proper width and height set.
@@ -244,6 +255,7 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
         Settings.Video.WindowWidth = win_w;
         Settings.Video.WindowHeight = win_h;
     }
+#endif /* __ANDROID__ */
 
     window =
         SDL_CreateWindow("Vanilla Conquer", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, win_w, win_h, win_flags);
@@ -279,7 +291,21 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
         }
     }
 
+#ifdef __ANDROID__
+    /*
+    ** The device exposes only opengles2/opengles/software. Requesting a
+    ** renderer without ACCELERATED lets SDL fall back to the software driver,
+    ** which on this hardware stalls rather than failing cleanly - the engine
+    ** hung silently at "Setting video mode". Name the driver explicitly and
+    ** demand acceleration so a failure is a failure, not a hang.
+    */
+    SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
+    int android_render_flags = SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
+    DBG_INFO("Android: creating accelerated opengles2 renderer");
+    renderer = SDL_CreateRenderer(window, renderer_index, android_render_flags);
+#else
     renderer = SDL_CreateRenderer(window, renderer_index, SDL_RENDERER_TARGETTEXTURE);
+#endif
     if (renderer == nullptr) {
         DBG_ERROR("SDL_CreateRenderer failed: %s", SDL_GetError());
         Reset_Video_Mode();

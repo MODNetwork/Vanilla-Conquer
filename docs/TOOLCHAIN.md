@@ -2,26 +2,44 @@
 
 Pinned at Gate 2. No version changes after Gate 2 without a D-style entry in docs/DECISIONS.md.
 
-Status: **EMPTY — to be filled at Gate 2.**
+Status: **PINNED 2026-08-01** (Gate 2 in progress). No version changes after Gate 2 without a
+D-style entry in docs/DECISIONS.md.
 
-| Component | Pinned version / ref | Install path | Pinned on | Verified by |
-|---|---|---|---|---|
-| Android NDK | | | | |
-| Android SDK platform | | | | |
-| Android build-tools | | | | |
-| min API level | | | | |
-| target API level | | | | |
-| JDK | | | | |
-| Gradle | | | | |
-| Android Gradle Plugin | | | | |
-| CMake (Android) | | | | |
-| CMake (desktop host) | | | | |
-| Ninja | | | | |
-| SDL2 commit SHA | | | | |
-| openal-soft version | | | | |
-| Vanilla-Conquer upstream SHA at fork | | | | |
-| Windows host compiler (MSVC / mingw) | | | | |
-| WSL2 distro + clang version | | | | |
+**SDK root:** `C:\Users\mprit\scoop\apps\android-clt\current`
+**JAVA_HOME:** `C:\Users\mprit\scoop\apps\temurin17-jdk\current`
+
+| Component | Pinned version | Pinned on | Verified by |
+|---|---|---|---|
+| JDK | **Temurin 17.0.20+8** | 2026-08-01 | `java -version` |
+| Android NDK | **26.3.11579264 (r26d)** | 2026-08-01 | `ndk/26.3.11579264/source.properties` → `Pkg.ReleaseName = r26d` |
+| Android SDK platform | **android-34** | 2026-08-01 | `platforms/android-34` present |
+| Android build-tools | **34.0.0** | 2026-08-01 | `build-tools/34.0.0` present |
+| platform-tools / adb | **37.0.1-15733141** (adb 1.0.41) | 2026-08-01 | `adb version` |
+| min API level | **21** | 2026-08-01 | arm64-v8a floor; see note |
+| target API level | **34** | 2026-08-01 | matches platform |
+| CMake (Android) | *pending* — NDK-bundled or SDK cmake | | |
+| Gradle | *pending* — SDL2 template wrapper | | |
+| Android Gradle Plugin | *pending* | | |
+| SDL2 commit SHA | *pending* — Phase 2 step 3 | | |
+| openal-soft version | *pending* — Phase 3 | | |
+| Vanilla-Conquer upstream SHA at fork | `ce83b59` (parent of scaffold) | 2026-07-31 | `git log` |
+| Windows host compiler | MSVC 19.44.35228.0 | 2026-08-01 | see Windows section |
+| WSL2 distro + compiler | Ubuntu, g++ 15.2.0 | 2026-07-31 | see WSL section |
+
+**No release candidates were selected.** NDK r26d is the last stable r26 line, satisfying
+CLAUDE.md's "NDK r26+" without moving to r27+ mid-project.
+
+**min API 21 rationale:** SDL2 itself supports lower, but `arm64-v8a` requires API 21 as a floor
+and the build is arm64-only per CLAUDE.md. Recorded here because the acceptance checklist
+previously had no minimum-Android-version entry.
+
+**SDK licences:** all 7 accepted 2026-08-01 (`licenses/` contains android-sdk-license,
+android-sdk-preview-license, android-sdk-arm-dbt-license, android-googletv-license,
+android-googlexr-license, google-gdk-license, mips-android-sysimage-license). Accepting these is
+inseparable from installing the toolchain Michael directed; recorded for transparency.
+
+**Target device: NOT YET CONNECTED.** `adb devices` returns an empty list. Gate 2 onward requires a
+physical arm64 device with USB debugging enabled — an emulator does not satisfy the gate.
 
 ## Host audit — 2026-07-31 (updated during Phase 1)
 

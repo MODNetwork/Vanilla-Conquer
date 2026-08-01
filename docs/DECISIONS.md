@@ -237,3 +237,69 @@ receives one fewer argument when it is unset — so this produces **zero diff ag
 
 **Revisit at.** Phase 7, only if a Windows release build with a proper icon is wanted. The Android
 icon path does not depend on this.
+
+---
+
+## D-12 · 2026-08-01 · App identity — package id pinned now, display name deferred
+
+**Michael's request:** two titles "CCTD" and "CCRA", ideally selectable inside one app called "C&C".
+
+**Conflict.** All three strings are Electronic Arts trademark references. `docs/LICENSING.md` and D-6
+record the EA GPL §7 additional term: *"You may not distribute any modification of this program
+using any Electronic Arts trademark."* That binds app name, package id, icon and listing. This was
+ratified before the request, and recorded state outranks request wording.
+
+**The resolution that unblocks Phase 2 without deciding branding today:** package id and display
+name are **separable**.
+
+- **Package id is permanent.** It binds the signing identity and
+  `SDL_AndroidGetInternalStoragePath()`, so it determines where saves live. Changing it after
+  Gate 6 invalidates installs and forces a Gate 6 re-test (D-6).
+- **Display name is cosmetic** and can change at any point up to Gate 7 at zero cost.
+
+**Ruled now (agent decision, reversible only before Gate 2 completes):**
+
+| Field | Value | Rationale |
+|---|---|---|
+| Package id | `dev.pricharda.vc95` | Reverse-DNS under Michael's personal namespace. No EA mark. No MOD OS / TCG identifier (entity wall). |
+| Display name (placeholder) | `VC95` | Neutral. Replaced before Gate 7. |
+| Internal build target names | `vanillatd`, `vanillara` | Upstream's own names, already public and GPL-attributed. Internal target names are not product identity and carry materially lower risk than app name or package id. |
+
+**Deferred to Michael — display name, three options, lowest risk first:**
+
+1. **Fully original name, no lineage in the title.** Lineage credited in the README and the credits
+   screen where GPL requires it, not in the product mark. Lowest risk; also the only option that
+   scales if the app is ever listed publicly.
+2. **Upstream-family name** (e.g. something built around "Vanilla Conquer"). Not an EA mark, but
+   risks implying affiliation with the upstream project, which is a courtesy problem rather than a
+   legal one. Would warrant asking them.
+3. **Keep "CCTD"/"CCRA" as in-app mode labels only**, with a neutral app name. Still carries
+   residual risk: they are recognisable contractions of the marks. **[COUNSEL]** if pursued.
+
+**Not recommended:** "C&C" as the app name in any form. It is the mark.
+
+---
+
+## D-13 · 2026-08-01 · Two-title shell designed now, Red Alert enabled after Gate 7
+
+**Decision.** The Android app shell is built from the start to host **two** game targets with a
+mode selector. Only Tiberian Dawn is wired and gated through Gate 6. Red Alert is enabled as a
+post-Gate-7 extension.
+
+**Rationale.** Michael wants both titles in one app. D-2 holds `-DBUILD_VANILLARA=OFF` through
+Gate 6 to shrink the Phase 3 cross-compile breakage surface, and that reasoning is unchanged.
+These are reconcilable: the cost of *designing* for two titles now is near zero (do not hardcode a
+single-game assumption into the activity or the asset-path layout), whereas retrofitting a mode
+selector after the fact would touch the launcher, asset paths and save paths — the same fields
+D-6 says are expensive to change late.
+
+**Concrete effect on Phase 2:**
+- Activity and asset layout assume `<game>/` subdirectories, not a flat single-game data dir.
+- Save path scheme includes the game key from the start.
+- Native build wires one target now; the second slot exists and is empty.
+
+**Unchanged:** Gate 5 (touch controls) is validated against TD only. RA inherits it.
+
+**Asset note:** both titles' legacy data is already confirmed present on this machine — the RA
+discs are the same freeware family (D-8, RECON.md). RA is therefore an enablement task, not a
+sourcing task.

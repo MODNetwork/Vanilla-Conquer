@@ -338,3 +338,55 @@ order.
 `SETUP.Z` payload must always be extracted. Recorded here so Phase 4's Android asset-supply
 procedure inherits the complete list rather than rediscovering this on-device, where the same
 failure would present as a black screen after intro with far slower diagnosis.
+
+---
+
+## FAILURE LEDGER F-2 · 2026-08-01 · German UI — caused by my own asset choice in F-1
+
+**Symptom (Michael):** Gate 1 otherwise passed, but the UI rendered in German ("Optionen").
+
+**Root cause: an incorrect decision recorded in F-1, not a new problem.** F-1 states the disc's
+standalone `CCLOCAL.MIX` (137,439 bytes) was retained over the archive copy (121,305 bytes)
+"matching normal InstallShield overlay order." That reasoning was **wrong**. The two files are not
+base-plus-patch, they are **two different language builds**.
+
+Evidence, by string search of both files:
+
+| Source | Size | Strings found |
+|---|---|---|
+| `SETUP.Z` archive | 121,305 | `Load Mission`, `Abort Mission`, `Options`, `Options Menu` — **ENGLISH** |
+| `F:\INSTALL\` disc | 137,439 | `Mission laden`, `Einsatz abbrechen`, `Optionen` — **GERMAN** |
+
+`CONQUER.INI` already declared `Language=ENG` and had no effect. **The INI language key does not
+select UI strings in Tiberian Dawn — the shipped `CCLOCAL.MIX` is the language.** This is the
+operative fact for Phase 4 and Phase 7.
+
+**Fix.** Staged the archive (English) `CCLOCAL.MIX`. Verified in place: English strings present,
+German strings absent. The German file is preserved at `C:\DEV\_cnc-assets-backup\CCLOCAL.MIX.german`
+rather than deleted — it is the only German artefact available and is the reference if a language
+option is ever pursued.
+
+**Why the disc ships a German overlay under an English-labelled volume (`GDI95`) is not
+established.** Likely a repackaged freeware release. Labelled ASSUMPTION; not investigated further
+because it does not affect the build.
+
+**Prevention rule.** When two copies of the same asset differ in size, do not assume
+base-versus-patch. Diff their contents before choosing. Applies directly to Phase 4, where the
+Android asset-supply procedure will hand users the same ambiguity.
+
+---
+
+## OPEN QUESTION Q-1 · language toggle in the final product
+
+Michael asked whether the final product should carry a language toggle. **Not built, not scoped,
+deliberately.** Recording the mechanics so the decision can be made on facts at Phase 7:
+
+- Language is **not** a code setting. It is determined by which `CCLOCAL.MIX` is present.
+- A runtime toggle would require shipping or side-loading **multiple** `CCLOCAL.MIX` variants and
+  re-registering the MIX at runtime — engine work inside the data layer, not the platform layer.
+  That collides with CLAUDE.md's "platform-layer only, never modify game logic" boundary.
+- Assets are user-supplied by law (asset wall). The user's own data therefore dictates language.
+  A toggle only has meaning if the user supplies more than one language pack.
+
+**Recommendation when this is decided:** out of scope through Gate 7. Revisit only after the port
+is proven. Scope is never invented (Agent Law 1.10).

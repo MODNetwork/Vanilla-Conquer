@@ -119,6 +119,16 @@ Uint32 SettingsPixelFormat()
 
 static void Update_HWCursor();
 
+#ifdef __ANDROID__
+/*
+** Recompute everything that depends on the surface size. Called from the
+** SDL_WINDOWEVENT_SIZE_CHANGED handler because on Android the display geometry
+** is not stable: insets settle after launch, the device rotates, and on a
+** foldable the panel physically changes size mid-session (D-14).
+*/
+void Update_Video_Scaling();
+#endif
+
 static void Update_HWCursor_Settings()
 {
     /*
@@ -388,6 +398,33 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
 
     return true;
 }
+
+#ifdef __ANDROID__
+void Update_Video_Scaling()
+{
+    if (renderer == nullptr || window == nullptr) {
+        return;
+    }
+
+    int out_w = 0, out_h = 0;
+    SDL_GetRendererOutputSize(renderer, &out_w, &out_h);
+
+    /*
+    ** Re-assert the logical size. SDL scales the fixed 320x200-era game
+    ** surface up to whatever the panel now is and letterboxes to preserve
+    ** aspect. Without this the game keeps rendering into the geometry that was
+    ** current at init, which on a foldable leaves a small fixed rectangle
+    ** stranded in the corner after the device is opened.
+    */
+    if (hwcursor.GameW > 0 && hwcursor.GameH > 0) {
+        SDL_RenderSetLogicalSize(renderer, hwcursor.GameW, hwcursor.GameH);
+    }
+
+    Update_HWCursor_Settings();
+
+    DBG_INFO("Android: rescaled to output %dx%d (logical %dx%d)", out_w, out_h, hwcursor.GameW, hwcursor.GameH);
+}
+#endif
 
 void Toggle_Video_Fullscreen()
 {

@@ -95,6 +95,25 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
             case SDL_WINDOWEVENT_FOCUS_LOST:
                 Focus_Loss();
                 break;
+#ifdef __ANDROID__
+            /*
+            ** Display geometry is not stable on Android. It changes during
+            ** startup as system insets settle, on rotation, and on this target
+            ** device every time the fold opens or closes (D-14). Anything that
+            ** cached a size at init is wrong from here on, so recompute the
+            ** video scaling whenever the surface changes.
+            **
+            ** NOTE: this is a window-event SUBTYPE, tested against
+            ** event.window.event. The reference port tests it against
+            ** event.type, where it can never match, and additionally compiles
+            ** the whole SDL_WINDOWEVENT case out on Android - which is why its
+            ** window never resizes when the device is unfolded.
+            */
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+            case SDL_WINDOWEVENT_RESIZED:
+                Update_Video_Scaling();
+                break;
+#endif
             }
             break;
         case SDL_MOUSEWHEEL:

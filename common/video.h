@@ -67,6 +67,14 @@ void Move_Video_Mouse(float xrel, float yrel);
 void Get_Video_Mouse(int& x, int& y);
 void Toggle_Video_Fullscreen();
 void Reset_Video_Mode();
+#ifdef __ANDROID__
+/*
+** Recompute video scaling after the drawing surface changes size. Android
+** geometry is not stable: insets settle post-launch, the device rotates, and
+** a foldable changes panel dimensions mid-session (D-14).
+*/
+void Update_Video_Scaling();
+#endif
 unsigned Get_Free_Video_Memory();
 void Wait_Blit();
 

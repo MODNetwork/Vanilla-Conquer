@@ -223,3 +223,59 @@ decision. Paraphrased, with the operative obligations named:
 corresponding source under this grant. Code is free to modify and convey under GPL v3 subject to
 the above. **Assets remain EA copyright and are not covered** — the existing asset wall is
 therefore a legal requirement, not merely a hygiene rule.
+
+---
+
+## ASSET PROCEDURE — VERIFIED 2026-08-01 (closes Phase 0 step 4 / Phase 1 step 1)
+
+### Source, confirmed present on the host
+
+The supported freeware C&C Gold Win95 discs are mounted:
+
+| Drive | Volume label | Size | Identified by |
+|---|---|---|---|
+| `F:` | **GDI95** | 608,675,840 | `SETUP.INI` → `AppName=Command & Conquer Windows 95 Edition` |
+| `J:` | **NOD95** | 592,164,864 | same release, NOD disc |
+
+This is the source upstream names as supported (README: *"the final freeware Gold CD release
+(GDI, NOD) works fine"*). It is **not** the Remastered Collection data, which D-8 rules out.
+
+### Files taken
+
+From the disc root: `AUD.MIX`, `CONQUER.MIX`, `DESERT.MIX`, `GENERAL.MIX`, `MOVIES.MIX`,
+`SCORES.MIX`, `SOUNDS.MIX`, `TEMPERAT.MIX`, `WINTER.MIX`.
+From `\INSTALL\`: `CCLOCAL.MIX`.
+
+Total 10 files, 498,059,494 bytes.
+
+### Staging location — OUTSIDE THE REPO
+
+```
+C:\DEV\_cnc-run\        <- run directory, NOT under C:\DEV\cnc-td-android
+    vanillatd.exe       (copied from build-win\RelWithDebInfo)
+    SDL2.dll
+    *.MIX               (the 10 files above)
+```
+
+A separate run directory is used deliberately rather than dropping assets into `build-win\`.
+`build-win/` sits inside the repo working tree, and although it is gitignored, the asset wall is a
+**licence requirement** (EA retains copyright on game data; only the engine source is GPL v3).
+Keeping game data on a path that has no relationship to the repo makes accidental commit
+structurally impossible rather than merely unlikely.
+
+### Result
+
+`vanillatd.exe` launched from `C:\DEV\_cnc-run` and **stayed resident at ~92 MB RSS**, i.e. it
+located and loaded the MIX data rather than exiting on missing assets. Two instances confirmed via
+`tasklist`, then terminated.
+
+**NOT YET VERIFIED:** that it renders correctly and is playable. Agents cannot see the screen.
+Gate 1 requires Michael's playtest of 5 minutes of GDI mission 1 — HUMAN-GATE, per CLAUDE.md.
+
+### Files NOT present on the discs, deferred until proven necessary
+
+`LOCAL.MIX`, `SPEECH.MIX`, `TRANSIT.MIX`, `UPDATE*.MIX`, `SC-*.MIX` do not exist on the disc roots;
+they are packed inside the InstallShield payload (`SETUP.Z`). `CCLOCAL.MIX` was taken from
+`\INSTALL\` in their place. The engine started without them. If Michael's playtest surfaces missing
+speech, missing mission text, or absent campaign scenarios, extract `SETUP.Z` and add them —
+do not pre-emptively run the Win95 installer.

@@ -482,3 +482,66 @@ result than the gate required.
 | `docs/TOOLCHAIN.md` filled and committed | PASS |
 
 Phase 3 is unblocked.
+
+---
+
+## GATE 3 · PASS · 2026-08-01 (Michael)
+
+**Report:** *"i see the main menu yes"*
+
+**Criterion:** *"Engine boots to its asset-check/main-menu code path on device (logcat-verified, tag VCTD)."* — **exceeded.** It did not merely reach the asset check; it completed the whole initialisation sequence and rendered the menu.
+
+**Evidence** (`gate3_evidence.txt`, `adb logcat -s VCTD -d`):
+
+```
+C&C95 - About to register CCLOCAL.MIX / UPDATE.MIX / UPDATEC.MIX
+C&C95 - About to load fonts
+C&C95 - About to set palette
+C&C95 - About to set the mouse shape
+C&C95 - About to enter wait for focus loop
+C&C95 - About to load the language file
+C&C95 - About to register GENERAL / CONQUER / TRANSIT / MOVIES / SCORES / SPEECH / SOUNDS
+C&C95 - About to initialise the animation system
+C&C95 - About to play the intro movie
+C&C95 - Game initialisation complete.
+```
+
+**Incidental proof of graceful missing-data handling.** `MOVIES.MIX` (449 MB) and `SCORES.MIX`
+(39 MB) were deliberately not pushed. The engine registered past both without aborting. Gate 3
+step 5 asked for this behaviour against an empty data directory; it is instead demonstrated
+against genuinely absent files inside an otherwise complete set, which is the stronger test.
+
+### Files that required an Android platform-layer change to reach this point
+
+| File | Defect |
+|---|---|
+| `common/vqaaudio_null.cpp` | vestigial `<sys/timeb.h>`, absent from Bionic |
+| `tiberiandawn/startup.cpp` | missing `SDL_main.h` |
+| `common/wwkeyboard.h` | `SDL_MAIN_HANDLED` suppressed the `main` → `SDL_main` rename |
+| `common/debugstring.cpp` | stderr discarded; engine was silent |
+| `common/paths_posix.cpp` | resolved `/system/share` and `/data/.config`, both unreachable |
+| `common/video_sdl2.cpp` | renderer could fall back to the software driver |
+
+Six of the ~17 files the port map identifies. Two of the six defects were **not** in the map:
+the `SDL_MAIN_HANDLED` collision, and the fact that an apparent video hang was the device being
+asleep (`mWakefulness=Dozing`, `mDreamingLockscreen=true`) rather than any code fault.
+
+---
+
+## PLAN OBSERVATION · Gate 4 and Gate 5 are entangled on Android
+
+BUILD_PLAN Gate 4 reads: *"Main menu renders with real assets; mission 1 loads."*
+
+The first half is **already satisfied** — Michael has the menu on screen with real MIX data.
+The second half is not reachable in isolation: **loading mission 1 requires navigating the menu,
+and there is no input device.** The engine expects a mouse; touch translation is Phase 5.
+
+This is a genuine ordering flaw in the plan rather than a discovery about the port. On desktop the
+two gates separate cleanly because a mouse exists from the start. On Android they do not.
+
+**Proposed resolution (Michael's ruling):** split Gate 4.
+- **Gate 4a — PASS now.** Main menu renders with real assets, screenshot/visual confirmed.
+- **Gate 4b** — mission 1 loads and renders. Deferred to immediately after the first working
+  touch translation, and verified as part of the Phase 5 loop rather than before it.
+
+No work changes; only the gate boundary moves so a gate is not left permanently unpassable.

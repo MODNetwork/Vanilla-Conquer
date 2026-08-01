@@ -410,19 +410,25 @@ void Update_Video_Scaling()
     SDL_GetRendererOutputSize(renderer, &out_w, &out_h);
 
     /*
-    ** Re-assert the logical size. SDL scales the fixed 320x200-era game
-    ** surface up to whatever the panel now is and letterboxes to preserve
-    ** aspect. Without this the game keeps rendering into the geometry that was
-    ** current at init, which on a foldable leaves a small fixed rectangle
-    ** stranded in the corner after the device is opened.
+    ** Update_HWCursor_Settings() is the whole job: it re-reads the renderer
+    ** output size and recomputes render_dst, the destination rect the engine
+    ** blits into, plus the cursor scale factors.
+    **
+    ** Do NOT call SDL_RenderSetLogicalSize here. The engine does its own
+    ** scaling via render_dst and uses logical size nowhere. Adding it imposes
+    ** a second coordinate space on top, so SDL letterboxes output that was
+    ** already scaled - which rendered the game as a small thumbnail with the
+    ** rest of the panel empty. Confirmed by playtest 2026-08-01.
     */
-    if (hwcursor.GameW > 0 && hwcursor.GameH > 0) {
-        SDL_RenderSetLogicalSize(renderer, hwcursor.GameW, hwcursor.GameH);
-    }
-
     Update_HWCursor_Settings();
 
-    DBG_INFO("Android: rescaled to output %dx%d (logical %dx%d)", out_w, out_h, hwcursor.GameW, hwcursor.GameH);
+    DBG_INFO("Android: rescaled, renderer output %dx%d, dst %dx%d at %d,%d",
+             out_w,
+             out_h,
+             render_dst.w,
+             render_dst.h,
+             render_dst.x,
+             render_dst.y);
 }
 #endif
 

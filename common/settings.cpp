@@ -25,7 +25,15 @@ SettingsClass::SettingsClass()
     Video.Width = 0;
     Video.Height = 0;
     Video.Boxing = true;
+#ifdef __ANDROID__
+    // D-16: fill the panel by default on Android. "auto" resolves against the
+    // live renderer output, so one binary fits every device and refits on fold.
+    // Override with BoxingAspectRatio=16:10 in CONQUER.INI for true native
+    // proportions - no rebuild required.
+    Video.BoxingAspectRatio = "auto";
+#else
     Video.BoxingAspectRatio = "16:10";
+#endif
     Video.FrameLimit = 120;
     Video.InterpolationMode = 2;
     Video.HardwareCursor = false;

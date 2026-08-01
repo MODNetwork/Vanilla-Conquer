@@ -342,3 +342,57 @@ hazard does not apply. VERIFIED, not assumed.
 
 **Standing rule.** Re-run this probe whenever the target device changes. If any future target
 reports 16384, the NDK pin must move to r27+ and `docs/TOOLCHAIN.md` updated by D-entry.
+
+---
+
+## D-16 · 2026-08-01 · Aspect handling — FILL is the shipping default, NATIVE stays switchable
+
+**Decision.** `BoxingAspectRatio=auto` (fill the panel) is the default. `16:10` (true native
+proportions, letterboxed) remains available and is switchable on-device with no rebuild.
+
+**Rationale.** Michael reviewed both live on the target device, folded and unfolded, and chose
+fill. Recorded rather than assumed: this is an aesthetic ruling, not a technical one, and the
+trade-off is real — the game is natively 640x400 (exactly 16:10), so filling a 2.24:1 panel
+stretches roughly 40% horizontally.
+
+**Implementation.** `auto` is resolved inside `Update_HWCursor_Settings()`, which already runs on
+every `SDL_WINDOWEVENT_SIZE_CHANGED`. The image therefore refits whenever the panel changes rather
+than only at launch. Verified across a live fold with no relaunch:
+
+```
+folded    renderer output 2424x1080   dst 2424x1080 at 0,0
+unfolded  renderer output 2152x1940   dst 2152x1940 at 0,0
+```
+
+**Reversibility is permanent and deliberate.** `CONQUER.INI` is read from the writable user path,
+so `_cnc-scripts\aspect.cmd fill|native` swaps the file and relaunches in about two seconds. No
+rebuild, no reinstall. This survives to Gate 7 and costs nothing to keep.
+
+**Why this was done now rather than at Phase 7.** Michael asked for it before it became expensive,
+and that instinct was correct. It cost ~20 lines because the scaling path was already centralised.
+After Phase 5 it would have meant unpicking every touch hit-test built on a fixed-geometry
+assumption.
+
+---
+
+## D-17 · 2026-08-01 · Cover-screen orientation defect WITHDRAWN — never independently verified
+
+**Withdrawn.** The reported "landscape fails on the cover screen" is closed as **not a distinct
+defect**.
+
+**Provenance, stated plainly.** The claim originated in Michael's playtest report, not in any
+measurement by the agent. The agent recorded it as an open item and offered `resizeableActivity`
+as a **suspicion**, explicitly not a finding. No probe was ever run against it.
+
+**Resolution.** Michael reports the cover screen honours landscape correctly after the
+`SDL_RenderSetLogicalSize` revert (F-7). The manifest already carried `screenOrientation`
+`sensorLandscape` **before** the failing playtest, so orientation was being applied throughout.
+The regression rendered the game as a small stranded rectangle; on the narrow cover panel a
+mis-scaled sliver is readily misread as an orientation fault.
+
+**One root cause, two reported symptoms.** The agent should have connected them rather than
+opening a second line of investigation off an unverified report.
+
+**Standing rule.** A symptom reported once and not reproduced by measurement is a lead, not a
+defect. Do not carry it as an open work item without a probe that confirms it, and never fix
+against it — that is how effort gets spent on problems that do not exist.

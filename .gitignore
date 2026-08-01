@@ -31,8 +31,12 @@ keystore.properties
 
 # ANDROID BUILD OUTPUTS
 .gradle/
-/android/.cxx/
-/android/app/build/
+.cxx/
+android/.cxx/
+android/app/.cxx/
+android/app/build/
+android/build/
+android/local.properties
 *.apk
 *.aab
 /out/

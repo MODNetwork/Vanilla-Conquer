@@ -39,7 +39,14 @@
 #include <stdint.h>
 
 #ifdef SDL_BUILD
+// SDL_MAIN_HANDLED tells SDL the application supplies its own main().
+// That is true on desktop, but NOT on Android: there SDLActivity looks up
+// SDL_main in the loaded .so, and SDL_main.h only renames main -> SDL_main
+// when SDL_MAIN_HANDLED is absent. Defining it here exported plain 'main'
+// and produced "Couldn't find function SDL_main in library libvanillatd.so".
+#ifndef __ANDROID__
 #define SDL_MAIN_HANDLED
+#endif
 #include <SDL.h>
 #endif
 

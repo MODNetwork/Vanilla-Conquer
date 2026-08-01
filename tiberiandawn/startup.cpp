@@ -52,6 +52,14 @@ HINSTANCE ProgramInstance;
 #include <unistd.h>
 #endif
 
+#ifdef __ANDROID__
+// SDL_main.h redefines main -> SDL_main. SDLActivity looks up SDL_main in the
+// loaded library; without this the entry point is never found, the SDL thread
+// never starts, and the activity goes straight onResume -> onPause -> onStop
+// with no surface created and no engine output.
+#include "SDL_main.h"
+#endif
+
 extern int ReadyToQuit;
 void Read_Setup_Options(RawFileClass* config_file);
 
@@ -208,7 +216,7 @@ int main(int argc, char** argv)
         printf("Zuwenig Hauptspeicher verf?gbar.\n");
 #else
 #ifdef FRENCH
-        printf("M‚moire vive (RAM) insuffisante.\n");
+        printf("Mï¿½moire vive (RAM) insuffisante.\n");
 #else
         printf("Insufficient RAM available.\n");
 #endif

@@ -15,7 +15,11 @@
 #include "vqatask.h"
 #include "timer.h"
 #include <algorithm>
+#ifndef __ANDROID__
+// Vestigial: nothing in this file references ftime() or struct timeb.
+// Bionic does not ship <sys/timeb.h> (removed legacy SVID header).
 #include <sys/timeb.h>
+#endif
 
 static TimerClass timer;
 

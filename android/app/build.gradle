@@ -37,7 +37,11 @@ android {
     externalNativeBuild {
         cmake {
             path 'jni/CMakeLists.txt'
-            version '3.22.1'
+            // Engine root requires cmake_minimum_required(VERSION 3.25); the
+            // SDK default 3.22.1 is too old. Deliberately NOT 4.x: CMake 4
+            // removes compatibility with cmake_minimum_required below 3.5 and
+            // this tree contains sub-projects declaring 3.6.
+            version '3.31.6'
         }
     }
 

@@ -72,7 +72,7 @@
         <!-- Fully qualified: SDLActivity lives in org.libsdl.app, not in our
              namespace (dev.pricharda.vc95). A relative name here resolves
              against the namespace and throws ClassNotFoundException at launch. -->
-        <activity android:name="org.libsdl.app.SDLActivity"
+        <activity android:name="dev.pricharda.vc95.VC95Activity"
             android:label="@string/app_name"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleInstance"

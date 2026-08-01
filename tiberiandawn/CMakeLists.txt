@@ -194,9 +194,13 @@ if(BUILD_REMASTERTD)
 endif()
 
 if(BUILD_VANILLATD)
+    # Android supplies its own launcher icon from res/mipmap; the desktop
+    # ico/icns generation is skipped entirely there.
+    if(NOT ANDROID)
     include(BuildIcons)
     # Create the custom command for generating the ico/icns files for display in the OS.
     make_icon(INPUT "${CMAKE_SOURCE_DIR}/resources/vanillatd_icon.svg" OUTPUT VANILLATD_ICON)
+    endif()
 
     if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
         # Generate windows version info.
@@ -214,8 +218,14 @@ if(BUILD_VANILLATD)
         )
     endif()
 
+    # On Android the engine is not an executable: SDLActivity dlopen()s it as a
+    # shared library, so the same sources are built into libvanillatd.so.
+    if(NOT ANDROID)
     # A target must include the icon for the custom command to run.
     add_executable(VanillaTD ${TIBDAWN_SRC} ${TIBDAWN_NET_SRC} ${TIBDAWN_HEADERS} ${VANILLATD_RC} ${VANILLATD_ICON})
+    else()
+    add_library(VanillaTD SHARED ${TIBDAWN_SRC} ${TIBDAWN_NET_SRC} ${TIBDAWN_HEADERS})
+    endif()
 
     if(MAKE_BUNDLE)
         set_source_files_properties(${VANILLATD_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
@@ -232,7 +242,12 @@ if(BUILD_VANILLATD)
 
     target_compile_definitions(VanillaTD PUBLIC $<$<CONFIG:Debug>:_DEBUG> ${VANILLA_DEFS} MEGAMAPS)
     target_include_directories(VanillaTD PUBLIC ${CMAKE_SOURCE_DIR} .)
+    if(NOT ANDROID)
     target_link_libraries(VanillaTD commonv ${VANILLA_LIBS} ${STATIC_LIBS})
+    else()
+    # 'log' provides __android_log_print, used by the VCTD evidence tag.
+    target_link_libraries(VanillaTD commonv ${VANILLA_LIBS} ${STATIC_LIBS} log android)
+    endif()
     set_target_properties(VanillaTD PROPERTIES OUTPUT_NAME vanillatd)
     if(MAP_EDITORTD)
         target_compile_definitions(VanillaTD PUBLIC INTERNAL_VERSION)

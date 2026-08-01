@@ -279,3 +279,62 @@ they are packed inside the InstallShield payload (`SETUP.Z`). `CCLOCAL.MIX` was 
 `\INSTALL\` in their place. The engine started without them. If Michael's playtest surfaces missing
 speech, missing mission text, or absent campaign scenarios, extract `SETUP.Z` and add them —
 do not pre-emptively run the Win95 installer.
+
+---
+
+## FAILURE LEDGER F-1 · 2026-08-01 · Gate 1 FAIL — black screen after intro
+
+**Symptom (Michael, verbatim):** *"fail game does not start, black screen after intro"*
+
+**What the symptom ruled OUT immediately.** The intro played. That proves the SDL2 window, the
+video/VQA decoder, the palette path and rendering all work. The failure is specifically at the
+transition from intro to main menu, not at startup.
+
+**Process state:** `tasklist` showed no `vanillatd.exe` after the report — it exited rather than
+hanging. A crash, not a deadlock.
+
+**Root cause — found by reading the engine, not by guessing.** `tiberiandawn/init.cpp` registers
+several MIX files with **no `Is_Available()` guard**:
+
+| Line | Call |
+|---|---|
+| 199 | `new MFCD("UPDATE.MIX")` |
+| 200 | `new MFCD("UPDATA.MIX")` |
+| 202 | `new MFCD("UPDATEC.MIX")` + `MFCD::Cache("UPDATEC.MIX")` |
+| 206 | `new MFCD("LANGUAGE.MIX")` |
+| 419 | `new MFCD("TRANSIT.MIX")` |
+
+Contrast line 449, where `SPEECH.MIX` **is** guarded by `CCFileClass(...).Is_Available()` — which
+is why its absence was survivable and these were not.
+
+**Why they were missing.** These files do not exist on the CD root. They live inside
+`F:\INSTALL\SETUP.Z`, a 23.5 MB **InstallShield 3.x** archive (magic `13 5d 65 8c`), which a
+normal installation would unpack. Copying the disc root alone produces an incomplete data set that
+gets far enough to play the intro and then dies.
+
+**Fix.** Built `wfr/unshieldv3` (InstallShield V3 extractor) under WSL and unpacked the archive.
+27 files, 25,780,930 bytes uncompressed. Recovered and staged:
+
+```
+UPDATE.MIX    10,233,756      TRANSIT.MIX    4,105,646
+UPDATEC.MIX      990,901      SPEECH.MIX       594,297
+DESEICNH.MIX     120,296      TEMPICNH.MIX     119,935
+WINTICNH.MIX     119,935      LOCAL.MIX              4
+CONQUER.INI          310
+```
+
+**Two of the unconditional registrations can never be satisfied by this release.**
+`UPDATA.MIX` and `LANGUAGE.MIX` do not exist on either disc or inside the archive. The engine
+therefore tolerates their absence — `new MFCD()` on a missing file yields an unusable object
+without aborting. This matters for **Phase 3**: do not treat those two as required on Android, and
+do not "fix" their absence.
+
+`LOCAL.MIX` is a 4-byte stub in the Win95 release; `CCLOCAL.MIX` supersedes it in hires mode per
+the `init.cpp` branch at lines 186–196. The disc's standalone `CCLOCAL.MIX` (137,439 bytes, dated
+1997) was retained over the archive copy (121,305 bytes), matching normal InstallShield overlay
+order.
+
+**Prevention rule.** Disc root files alone are NOT a complete C&C Gold data set. The
+`SETUP.Z` payload must always be extracted. Recorded here so Phase 4's Android asset-supply
+procedure inherits the complete list rather than rediscovering this on-device, where the same
+failure would present as a black screen after intro with far slower diagnosis.

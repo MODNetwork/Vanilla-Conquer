@@ -303,3 +303,42 @@ D-6 says are expensive to change late.
 **Asset note:** both titles' legacy data is already confirmed present on this machine — the RA
 discs are the same freeware family (D-8, RECON.md). RA is therefore an enablement task, not a
 sourcing task.
+
+---
+
+## D-14 · 2026-08-01 · Gate 6 gains a fold/unfold case — target device is a foldable
+
+**Decision.** Gate 6's criterion is extended. Current text: *"Sleep the phone mid-mission, resume,
+save, force-kill, relaunch, load — all clean."* Add: **fold and unfold mid-mission, both
+directions, without crash or rendering corruption.**
+
+**Rationale.** The target device is a Google Pixel 9 Pro Fold (`comet`), verified 2026-08-01. A
+fold event changes display geometry at runtime and destroys/recreates the drawing surface — the
+same code path as sleep/resume, but reachable at any moment during gameplay rather than only at a
+lifecycle boundary. A normal phone never exercises this. Discovering it at Gate 6 with no criterion
+covering it would mean either shipping a crash or reopening a closed gate.
+
+**Supporting evidence.** `docs/reference/android-port-map.diff` contains a commit titled
+*"reload screen resolution after every window resizing on Android"*. The existing port already hit
+window-resize handling on ordinary devices; a foldable exercises that path far harder.
+
+**Effect on Phase 5.** Touch geometry (drag-box, sidebar hit regions, integer scaling) must be
+recomputed on surface change, not cached at startup. Recorded now so Phase 5 does not bake in a
+fixed-geometry assumption that Phase 6 then has to unpick.
+
+---
+
+## D-15 · 2026-08-01 · NDK r26d pin VERIFIED safe against the 16 KB page hazard
+
+**Decision.** The NDK 26.3.11579264 (r26d) pin stands.
+
+**Risk that was checked, not assumed.** Android 15+ permits devices with a 16 KB kernel page size.
+**NDK r26 does not align shared libraries to 16 KB by default; r27+ does.** On a 16 KB device, an
+r26-built `.so` fails to load. That would have surfaced in Phase 3 as an opaque native-library load
+failure with no obvious connection to the toolchain pin — an expensive false trail.
+
+**Probe and result.** `adb shell getconf PAGE_SIZE` on the target device returns **4096**. The
+hazard does not apply. VERIFIED, not assumed.
+
+**Standing rule.** Re-run this probe whenever the target device changes. If any future target
+reports 16384, the NDK pin must move to r27+ and `docs/TOOLCHAIN.md` updated by D-entry.

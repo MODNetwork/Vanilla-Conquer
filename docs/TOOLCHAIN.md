@@ -185,11 +185,42 @@ winget (present), scoop (present, in use), choco (absent).
 
 ---
 
-## Target device
+## Target device — RECORDED 2026-08-01
 
 | Field | Value |
 |---|---|
-| Model | |
-| Android version | |
-| ABI | arm64-v8a |
-| Recorded on | |
+| Model | **Google Pixel 9 Pro Fold** (`comet`) |
+| Android version | **17** |
+| API level (SDK) | **37** |
+| Build ID | `CP2A.260705.006` |
+| ABI | **arm64-v8a** |
+| `ro.product.cpu.abilist` | `arm64-v8a` **only** |
+| Density | 390 dpi |
+| Physical size (as reported) | 1080x2424 |
+| Kernel page size | **4096 (4 KB)** |
+| Connection | **Wireless debugging** (mDNS `_adb-tls-connect._tcp`), guid `adb-52221FDKD0001W-Wxj4jS` |
+
+### Three consequences of this specific device
+
+**1. ABI list is arm64-v8a only.** The device advertises no other ABI. Our arm64-only build (per
+CLAUDE.md) is therefore exactly right with nothing wasted, and an ABI-filter mistake would produce
+an APK that simply refuses to install rather than silently shipping dead armeabi code.
+
+**2. Page size is 4 KB — the 16 KB hazard does NOT apply here.** Android 15+ introduced devices
+with 16 KB kernel pages, and **NDK r26 does not 16 KB-align shared libraries by default** (r27+
+does). Had this device booted 16 KB pages, our pinned NDK r26d would have produced `.so` files that
+fail to load, presenting in Phase 3 as an inexplicable native-library load failure. Verified
+`getconf PAGE_SIZE` = 4096, so r26d stands. **If the target device ever changes, re-run this
+probe before trusting the NDK pin.**
+
+**3. It is a FOLDABLE, which makes Gate 6 materially harder than on a normal phone.** Folding and
+unfolding changes display geometry at runtime and triggers surface destruction/recreation — the
+same code path as sleep/resume, but reachable at any instant during play. The existing Gate 6
+criterion (sleep, resume, save, force-kill, relaunch, load) does **not** cover it.
+**Gate 6 gains a fold/unfold-mid-mission case.** Note that the reference port we are mapping from
+(`android-port-map.diff`) contains a commit titled *"reload screen resolution after every window
+resizing on Android"* — that is the same class of problem, and it will be exercised far more
+aggressively here.
+
+**Target/min SDK vs device:** app targets 34, device is 37. Sideloaded apps run fine under
+compatibility behaviour; noted so it is not mistaken for a defect later.

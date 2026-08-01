@@ -70,6 +70,49 @@ WSLg GUI support requires the Microsoft Store WSL package on Windows 10 build 19
 is less reliable than on Windows 11. **This is why Gate 1's playtest baseline stays Windows-native
 (D-1) and WSL2 stays the compile canary.** Do not move the playtest loop into WSL2.
 
+### WSL2 canary — INSTALLED AND BUILDING 2026-07-31
+
+Distro: **Ubuntu** (WSL2), x86_64, 8 cores. `wsl -u root` is passwordless.
+WSLg is active (`WSL2_GUI_APPS_ENABLED=1`, `WAYLAND_DISPLAY=wayland-0`, PulseServer present).
+
+| Component | Version |
+|---|---|
+| g++ | 15.2.0 (Ubuntu 15.2.0-16ubuntu1) |
+| cmake | 4.2.3 |
+| ninja | 1.13.2 |
+| git | 2.53.0 |
+| SDL2 (libsdl2-dev) | **2.32.10** |
+| OpenAL (libopenal-dev) | **1.25.1** |
+
+**Canary clone location: `~/cnc-td-android` on ext4 — NOT `/mnt/c`.**
+
+Reason, VERIFIED 2026-07-31: `ls /mnt/c/DEV/cnc-td-android/CMAKELISTS.TXT` **succeeds** against a
+file actually named `CMakeLists.txt`. DrvFs (`/mnt/c`) is case-INSENSITIVE, so a canary built
+there would catch **zero** case bugs and D-1's stated purpose would be silently defeated. The
+canary clone is sourced from the local Windows repo (`git clone /mnt/c/DEV/cnc-td-android`) so it
+carries our scaffold commits rather than the unpushed-fork state on GitHub.
+
+### GATE 1 (canary half) — PASS 2026-07-31
+
+Configure + build succeeded. 236 object files. Artifact verified, not merely "it compiled":
+
+```
+build/vanillatd: ELF 64-bit LSB pie executable, x86-64, dynamically linked,
+                 BuildID d91fa28ca0cb154b5ab056e7deeb352ca7e02650, with debug_info   (14 MB)
+
+ldd: libSDL2-2.0.so.0  => /usr/lib/x86_64-linux-gnu/libSDL2-2.0.so.0
+     libopenal.so.1    => /usr/lib/x86_64-linux-gnu/libopenal.so.1
+
+CMakeCache: BUILD_VANILLATD=ON  BUILD_VANILLARA=OFF  NETWORKING=OFF
+            SDL2=ON  OPENAL=ON  CMAKE_BUILD_TYPE=RelWithDebInfo
+nm: 0 networking symbols (NETWORKING=OFF confirmed at the binary level)
+```
+
+Launched with no assets present: reached OpenAL device init (ALSOFT messages emitted), did **not**
+segfault. Full no-asset code path is NOT yet characterised — output was piped through `head` and
+no audio device exists in this headless context, so `EXIT_CODE=0` reflects the pipe, not the game.
+Asset-missing behaviour is properly a Gate 3 criterion and is re-tested there.
+
 ### Package managers available
 
 winget (present), scoop (present, in use), choco (absent).

@@ -179,3 +179,23 @@ Windows 10 is less reliable than on Windows 11. The playtest loop stays Windows-
 
 **Blocked on.** Both MSVC Build Tools and WSL2 require elevation. Per CLAUDE.md, installer and SDK
 setup runs in a plain PowerShell window, never a pane. Handed to Michael.
+
+---
+
+## D-10 · 2026-07-31 · The WSL2 canary must live on ext4, never on /mnt/c
+
+**Decision.** The WSL2 canary clone is `~/cnc-td-android` inside the WSL ext4 filesystem. Building
+the canary from `/mnt/c/DEV/cnc-td-android` is forbidden.
+
+**Evidence.** `ls /mnt/c/DEV/cnc-td-android/CMAKELISTS.TXT` **succeeds** against a file actually
+named `CMakeLists.txt`. DrvFs is case-insensitive.
+
+**Why this matters.** D-1 justifies the WSL2 canary as "clang + POSIX + case-sensitive FS, the
+closest desktop analog to the NDK target." Two of those three hold on `/mnt/c`, but the
+case-sensitivity — the property that catches the wrongly-cased `#include` or asset path that
+builds clean on Windows and dies on Android — does not. A canary built on `/mnt/c` would have
+looked like it was working while silently providing none of its stated value, and the first
+symptom would have appeared on-device in Phase 3 where debugging is an order of magnitude slower.
+
+**Also ruled.** The canary clones from the local Windows repo, not from GitHub, so it tracks our
+scaffold commits (currently unpushed) rather than a stale fork state.

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Display name is a PLACEHOLDER pending D-12. It must not contain any
+     Electronic Arts trademark (EA GPL v3 section 7 additional terms) and must
+     not contain MOD OS or CoCreate identifiers (entity wall, CLAUDE.md).
+     Changing this string is free up to Gate 7; the package id is not. -->
+<resources>
+    <string name="app_name">VC95</string>
+</resources>

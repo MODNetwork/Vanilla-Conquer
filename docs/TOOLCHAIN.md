@@ -17,10 +17,10 @@ D-style entry in docs/DECISIONS.md.
 | platform-tools / adb | **37.0.1-15733141** (adb 1.0.41) | 2026-08-01 | `adb version` |
 | min API level | **21** | 2026-08-01 | arm64-v8a floor; see note |
 | target API level | **34** | 2026-08-01 | matches platform |
-| CMake (Android) | *pending* — NDK-bundled or SDK cmake | | |
-| Gradle | *pending* — SDL2 template wrapper | | |
-| Android Gradle Plugin | *pending* | | |
-| SDL2 commit SHA | *pending* — Phase 2 step 3 | | |
+| CMake (Android) | **3.22.1** (SDK package) | 2026-08-01 | `sdkmanager cmake;3.22.1` |
+| Gradle | **8.1.1** (wrapper) | 2026-08-01 | `gradle-wrapper.properties` |
+| Android Gradle Plugin | **8.1.1** | 2026-08-01 | `android/build.gradle` |
+| SDL2 commit SHA | **5d249570393f7a37e037abf22cd6012a4cc56a71** (`release-2.32.10`) | 2026-08-01 | submodule `android/app/jni/SDL` |
 | openal-soft version | *pending* — Phase 3 | | |
 | Vanilla-Conquer upstream SHA at fork | `ce83b59` (parent of scaffold) | 2026-07-31 | `git log` |
 | Windows host compiler | MSVC 19.44.35228.0 | 2026-08-01 | see Windows section |

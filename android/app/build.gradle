@@ -1,0 +1,56 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace "dev.pricharda.vc95"
+    compileSdkVersion 34
+    ndkVersion "26.3.11579264"
+
+    defaultConfig {
+        applicationId "dev.pricharda.vc95"
+        minSdkVersion 21
+        targetSdkVersion 34
+        versionCode 1
+        versionName "0.1-gate2"
+
+        externalNativeBuild {
+            cmake {
+                arguments "-DANDROID_APP_PLATFORM=android-21",
+                          "-DANDROID_STL=c++_shared"
+            }
+        }
+        ndk {
+            abiFilters 'arm64-v8a'
+        }
+    }
+
+    buildTypes {
+        debug {
+            minifyEnabled false
+            debuggable true
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path 'jni/CMakeLists.txt'
+            version '3.22.1'
+        }
+    }
+
+    applicationVariants.all { variant ->
+        tasks["merge${variant.name.capitalize()}Assets"]
+            .dependsOn("externalNativeBuild${variant.name.capitalize()}")
+    }
+
+    lint {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+}

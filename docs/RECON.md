@@ -390,3 +390,65 @@ deliberately.** Recording the mechanics so the decision can be made on facts at 
 
 **Recommendation when this is decided:** out of scope through Gate 7. Revisit only after the port
 is proven. Scope is never invented (Agent Law 1.10).
+
+---
+
+## FAILURE LEDGER F-3 · 2026-08-01 · Gate 2 first launch crash — relative activity name
+
+**Symptom.** APK installed and launched, process died instantly, no `VCTD` output.
+
+**Evidence (logcat).**
+
+```
+java.lang.RuntimeException: Unable to instantiate activity
+    ComponentInfo{dev.pricharda.vc95/dev.pricharda.vc95.SDLActivity}
+Caused by: java.lang.ClassNotFoundException:
+    Didn't find class "dev.pricharda.vc95.SDLActivity"
+```
+
+**Root cause.** The SDL template manifest declares `android:name="SDLActivity"` — a *relative*
+class name. AGP resolves a relative name against the module **namespace**. The template's namespace
+is `org.libsdl.app`, so it resolved correctly upstream. We set the namespace to
+`dev.pricharda.vc95` (D-12), so it resolved to a class that does not exist. `SDLActivity` still
+lives in `org.libsdl.app`.
+
+**Fix.** Fully qualify it: `android:name="org.libsdl.app.SDLActivity"`.
+
+**Prevention rule.** Any change to `namespace` or `applicationId` must be checked against every
+*relative* class reference in the manifest. This will recur at Phase 3 if a custom Activity
+subclass is introduced, and again at Phase 7 if the package id is ever revisited.
+
+---
+
+## GATE 2 EVIDENCE · 2026-08-01 · geometry is NOT stable, even without folding
+
+Captured with `adb logcat -s VCTD SDL -d` (per CLAUDE.md evidence rule). Full file:
+`gate2_evidence.txt`.
+
+```
+SDL  : surfaceCreated()
+SDL  : Window size: 1080x2424      Device size: 1080x2424
+VCTD : gate2: renderer output size 1080x2424
+SDL  : surfaceChanged()
+SDL  : Window size: 1080x2155      Device size: 1080x2424
+VCTD : gate2: SIZE_CHANGED -> renderer output now 1080x2155
+VCTD : gate2: lifecycle WILLENTERBACKGROUND / DIDENTERBACKGROUND
+VCTD : gate2: first frame presented
+SDL  : surfaceChanged()
+VCTD : gate2: lifecycle WILLENTERFOREGROUND / DIDENTERFOREGROUND
+VCTD : gate2: SIZE_CHANGED -> renderer output now 1080x2424
+```
+
+**The renderer output size changed three times within ~130 ms of launch — 2424 → 2155 → 2424 —
+with nobody touching the device.** The intermediate 2155 is the window with system insets applied
+before the fullscreen flags settle; note `Device size` stays 1080x2424 throughout while
+`Window size` moves.
+
+**This is D-14 proven empirically and earlier than expected.** It was raised as a foldable concern;
+it is in fact a *startup* concern on this device and would occur on a non-folding phone too. Any
+code that samples geometry once at init and caches it will be wrong for the first frames.
+
+**Binding consequence for Phase 5:** touch coordinate mapping, drag-box hit testing, sidebar touch
+regions and integer scaling must all derive from a live query on `SDL_WINDOWEVENT_SIZE_CHANGED`,
+never from a value captured at startup. A lifecycle transition also fired during launch, so the
+resume path is exercised before the first frame is even presented.

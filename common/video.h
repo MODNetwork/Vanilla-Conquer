@@ -74,6 +74,15 @@ void Reset_Video_Mode();
 ** a foldable changes panel dimensions mid-session (D-14).
 */
 void Update_Video_Scaling();
+/*
+** Place the cursor at an absolute window position, mapped through render_dst.
+** Touch is absolute; the engine's Move_Video_Mouse path is relative.
+*/
+void Set_Video_Mouse_Absolute(int win_x, int win_y);
+/*
+** Current cursor position in game coordinates.
+*/
+void Get_Video_Mouse_Game(int& x, int& y);
 #endif
 unsigned Get_Free_Video_Memory();
 void Wait_Blit();

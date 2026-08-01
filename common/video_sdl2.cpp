@@ -541,6 +541,61 @@ void Move_Video_Mouse(float xrel, float yrel)
     }
 }
 
+#ifdef __ANDROID__
+/*
+** Place the cursor at an absolute window position.
+**
+** Touch is absolute; the engine's mouse path is relative
+** (Move_Video_Mouse takes xrel/yrel). Feeding synthesised touch deltas into a
+** relative accumulator moves the cursor BY the gap to your finger instead of
+** TO it, so it drifts further away with every tap.
+**
+** Window coordinates must be mapped through render_dst, not merely scaled:
+** render_dst carries the letterbox offset, so in native/boxed mode there are
+** black bars whose width must be subtracted before scaling. Ignoring the
+** offset works only by accident in fill mode, where x and y happen to be 0.
+**
+** This is the foundation Phase 5 gestures build on - every hit test derives
+** from this mapping, and it re-reads render_dst each call so it stays correct
+** across a fold (D-14).
+*/
+void Set_Video_Mouse_Absolute(int win_x, int win_y)
+{
+    if (render_dst.w <= 0 || render_dst.h <= 0) {
+        return;
+    }
+
+    float gx = (float)(win_x - render_dst.x) * (float)hwcursor.GameW / (float)render_dst.w;
+    float gy = (float)(win_y - render_dst.y) * (float)hwcursor.GameH / (float)render_dst.h;
+
+    if (gx < 0.0f) {
+        gx = 0.0f;
+    } else if (gx >= (float)hwcursor.GameW) {
+        gx = (float)hwcursor.GameW - 1.0f;
+    }
+
+    if (gy < 0.0f) {
+        gy = 0.0f;
+    } else if (gy >= (float)hwcursor.GameH) {
+        gy = (float)hwcursor.GameH - 1.0f;
+    }
+
+    hwcursor.X = gx;
+    hwcursor.Y = gy;
+}
+
+/*
+** Current cursor position in game coordinates. Used by the touch click path,
+** which must not re-derive coordinates from the raw event: those are window
+** coordinates and ignore render_dst's letterbox offset.
+*/
+void Get_Video_Mouse_Game(int& x, int& y)
+{
+    x = hwcursor.X;
+    y = hwcursor.Y;
+}
+#endif
+
 void Get_Video_Mouse(int& x, int& y)
 {
     if (Keyboard->Is_Gamepad_Active() || (Settings.Mouse.RawInput && (hwcursor.Clip || !Settings.Video.Windowed))) {

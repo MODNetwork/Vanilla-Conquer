@@ -53,11 +53,36 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
             }
             break;
         case SDL_MOUSEMOTION:
+#ifdef __ANDROID__
+            /*
+            ** Touch is absolute. SDL reports it as mouse motion with a
+            ** synthesised xrel/yrel, and feeding that to the relative
+            ** accumulator moves the cursor BY the distance to the finger
+            ** rather than TO it - so it drifts further away on every tap.
+            ** Real pointing devices (a mouse over USB/BT) keep relative.
+            */
+            if (event.motion.which == SDL_TOUCH_MOUSEID) {
+                Set_Video_Mouse_Absolute(event.motion.x, event.motion.y);
+                break;
+            }
+#endif
             Move_Video_Mouse(static_cast<float>(event.motion.xrel), static_cast<float>(event.motion.yrel));
             break;
         case SDL_MOUSEBUTTONDOWN:
         case SDL_MOUSEBUTTONUP: {
             int x, y;
+
+#ifdef __ANDROID__
+            /*
+            ** A tap can arrive as a button event without any preceding motion,
+            ** so anchor the cursor to the touch point before the click is
+            ** dispatched. Otherwise the press registers wherever the cursor
+            ** happened to be left.
+            */
+            if (event.button.which == SDL_TOUCH_MOUSEID) {
+                Set_Video_Mouse_Absolute(event.button.x, event.button.y);
+            }
+#endif
 
             switch (event.button.button) {
             case SDL_BUTTON_LEFT:
@@ -72,6 +97,18 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
                 break;
             }
 
+#ifdef __ANDROID__
+            /*
+            ** For touch, Set_Video_Mouse_Absolute above already placed the
+            ** cursor in game coordinates via render_dst. Report that position
+            ** directly. The scale-divide branch below is wrong here because it
+            ** ignores render_dst's letterbox offset, so in native/boxed mode
+            ** every click would be displaced by the width of the black bar.
+            */
+            if (event.button.which == SDL_TOUCH_MOUSEID) {
+                Get_Video_Mouse_Game(x, y);
+            } else
+#endif
             if (Settings.Mouse.RawInput || Is_Gamepad_Active()) {
                 Get_Video_Mouse(x, y);
             } else {

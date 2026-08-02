@@ -20,6 +20,9 @@
 #include "settings.h"
 #include <cmath>
 #include <SDL.h>
+#ifdef __ANDROID__
+#include "debugstring.h"
+#endif
 
 void Focus_Loss();
 void Focus_Restore();
@@ -52,6 +55,48 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
                 Put_Key_Message(event.key.keysym.scancode, true);
             }
             break;
+#ifdef __ANDROID__
+        /*
+        ** Touch, handled at the source rather than via synthesised mouse
+        ** events. SDL_TouchFingerEvent carries normalised 0..1 coordinates
+        ** relative to the window, plus a fingerId - both required by the
+        ** Phase 5 gestures (drag-box, long-press, two-finger pan).
+        **
+        ** The cursor is placed on FINGERDOWN before the click is dispatched,
+        ** and tracked on FINGERMOTION so dragging follows the finger.
+        */
+        case SDL_FINGERDOWN:
+        case SDL_FINGERMOTION:
+        case SDL_FINGERUP: {
+            int tx, ty;
+
+            Set_Video_Mouse_Normalised(event.tfinger.x, event.tfinger.y);
+            Get_Video_Mouse_Game(tx, ty);
+
+            DBG_INFO("TOUCHFINGER %s id=%lld norm %.3f,%.3f -> game %d,%d",
+                     event.type == SDL_FINGERDOWN   ? "DOWN"
+                     : event.type == SDL_FINGERUP   ? "UP"
+                                                    : "MOVE",
+                     (long long)event.tfinger.fingerId,
+                     event.tfinger.x,
+                     event.tfinger.y,
+                     tx,
+                     ty);
+
+            /*
+            ** Synthesise the click ourselves. Touch-to-mouse synthesis is
+            ** disabled (SDL_HINT_TOUCH_MOUSE_EVENTS=0) so that the relative
+            ** Move_Video_Mouse path cannot fight the absolute placement above
+            ** within the same poll loop. A USB or Bluetooth mouse is
+            ** unaffected and still uses the ordinary mouse events below.
+            */
+            if (event.type == SDL_FINGERDOWN) {
+                Put_Mouse_Message(VK_LBUTTON, tx, ty, false);
+            } else if (event.type == SDL_FINGERUP) {
+                Put_Mouse_Message(VK_LBUTTON, tx, ty, true);
+            }
+        } break;
+#endif
         case SDL_MOUSEMOTION:
 #ifdef __ANDROID__
             /*
@@ -61,6 +106,14 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
             ** rather than TO it - so it drifts further away on every tap.
             ** Real pointing devices (a mouse over USB/BT) keep relative.
             */
+            DBG_INFO("TOUCHDBG motion which=%u (TOUCH=%u) x=%d y=%d xrel=%d yrel=%d",
+                     (unsigned)event.motion.which,
+                     (unsigned)SDL_TOUCH_MOUSEID,
+                     event.motion.x,
+                     event.motion.y,
+                     event.motion.xrel,
+                     event.motion.yrel);
+
             if (event.motion.which == SDL_TOUCH_MOUSEID) {
                 Set_Video_Mouse_Absolute(event.motion.x, event.motion.y);
                 break;

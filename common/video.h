@@ -83,6 +83,11 @@ void Set_Video_Mouse_Absolute(int win_x, int win_y);
 ** Current cursor position in game coordinates.
 */
 void Get_Video_Mouse_Game(int& x, int& y);
+/*
+** Place the cursor from a normalised (0..1) touch position, as carried by
+** SDL_TouchFingerEvent. This is the primitive Phase 5 gestures build on.
+*/
+void Set_Video_Mouse_Normalised(float nx, float ny);
 #endif
 unsigned Get_Free_Video_Memory();
 void Wait_Blit();

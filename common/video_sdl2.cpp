@@ -336,6 +336,16 @@ bool Set_Video_Mode(int w, int h, int bits_per_pixel)
     ** hung silently at "Setting video mode". Name the driver explicitly and
     ** demand acceleration so a failure is a failure, not a hang.
     */
+    /*
+    ** Consume touch as SDL_FINGER* only. With synthesis on, every touch also
+    ** produced a mouse-motion event carrying a relative delta, which the
+    ** relative Move_Video_Mouse path then applied on top of the absolute
+    ** placement done from the finger event - the two fought inside a single
+    ** poll loop and the cursor never landed under the finger.
+    ** A real mouse over USB or Bluetooth is unaffected.
+    */
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+
     SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengles2");
     int android_render_flags = SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC;
     DBG_INFO("Android: creating accelerated opengles2 renderer");
@@ -582,6 +592,42 @@ void Set_Video_Mouse_Absolute(int win_x, int win_y)
 
     hwcursor.X = gx;
     hwcursor.Y = gy;
+
+    DBG_INFO("TOUCHMAP win %d,%d -> game %d,%d  dst %dx%d@%d,%d  game %dx%d",
+             win_x,
+             win_y,
+             (int)gx,
+             (int)gy,
+             render_dst.w,
+             render_dst.h,
+             render_dst.x,
+             render_dst.y,
+             hwcursor.GameW,
+             hwcursor.GameH);
+}
+
+/*
+** Place the cursor from a normalised touch position (0..1 across the window),
+** which is what SDL_TouchFingerEvent carries.
+**
+** SDL_FINGER* events are the correct primitive for touch, not synthesised
+** mouse events:
+**   - they are unambiguous; there is no need to test event.which against
+**     SDL_TOUCH_MOUSEID, a comparison that did not match on this device
+**   - they carry per-finger identity, which single-mouse synthesis discards
+**     and which drag-box, long-press and two-finger pan all require
+** Phase 5 gestures are built on these.
+*/
+void Set_Video_Mouse_Normalised(float nx, float ny)
+{
+    if (renderer == nullptr) {
+        return;
+    }
+
+    int out_w = 0, out_h = 0;
+    SDL_GetRendererOutputSize(renderer, &out_w, &out_h);
+
+    Set_Video_Mouse_Absolute((int)(nx * (float)out_w), (int)(ny * (float)out_h));
 }
 
 /*

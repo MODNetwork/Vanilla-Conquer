@@ -88,6 +88,10 @@ void Get_Video_Mouse_Game(int& x, int& y);
 ** SDL_TouchFingerEvent. This is the primitive Phase 5 gestures build on.
 */
 void Set_Video_Mouse_Normalised(float nx, float ny);
+/*
+** Renderer output size in pixels, for converting normalised touch coordinates.
+*/
+void Get_Video_Output_Size(int& w, int& h);
 #endif
 unsigned Get_Free_Video_Memory();
 void Wait_Blit();

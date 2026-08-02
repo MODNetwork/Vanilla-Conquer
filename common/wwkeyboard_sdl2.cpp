@@ -32,8 +32,161 @@ WWKeyboardClassSDL2::~WWKeyboardClassSDL2()
 {
 }
 
+#ifdef __ANDROID__
+/*
+** Resolve a still-unclassified finger into PAN once it has been held long
+** enough. This must run per frame, not only on motion: a finger held perfectly
+** still generates no FINGERMOTION events, so a motion-driven check alone would
+** never arm panning.
+*/
+void WWKeyboardClassSDL2::Update_Touch_Gesture()
+{
+    if (TouchMode != TOUCH_PENDING) {
+        return;
+    }
+
+    if (SDL_GetTicks() - TouchStartMs >= TOUCH_PAN_HOLD_MS) {
+        TouchMode = TOUCH_PAN;
+        DBG_INFO("TOUCH: armed PAN (held %ums)", (unsigned)(SDL_GetTicks() - TouchStartMs));
+    }
+}
+
+void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger, uint32_t type)
+{
+    int out_w = 0, out_h = 0;
+    Get_Video_Output_Size(out_w, out_h);
+
+    const int win_x = (int)(finger.x * (float)out_w);
+    const int win_y = (int)(finger.y * (float)out_h);
+
+    if (type == SDL_FINGERDOWN) {
+        /*
+        ** Only the first finger drives the cursor. Ignoring later fingers
+        ** stops a stray palm or second thumb from yanking the cursor away
+        ** mid-gesture.
+        */
+        if (TouchMode != TOUCH_IDLE) {
+            return;
+        }
+
+        TouchFinger = finger.fingerId;
+        TouchOriginX = win_x;
+        TouchOriginY = win_y;
+        TouchStartMs = SDL_GetTicks();
+        TouchMode = TOUCH_PENDING;
+
+        // Cursor follows immediately so the player sees where they are aiming,
+        // but no click is dispatched until the gesture is classified.
+        Set_Video_Mouse_Absolute(win_x, win_y);
+        return;
+    }
+
+    if (finger.fingerId != TouchFinger) {
+        return;
+    }
+
+    const int dx = win_x - TouchOriginX;
+    const int dy = win_y - TouchOriginY;
+    const int moved_sq = dx * dx + dy * dy;
+
+    if (type == SDL_FINGERMOTION) {
+        switch (TouchMode) {
+        case TOUCH_PENDING:
+            if (moved_sq > TOUCH_SLOP_PX * TOUCH_SLOP_PX) {
+                /*
+                ** Moved before the hold elapsed: this is a click-drag. Replay
+                ** the press at the ORIGIN so marquee selection boxes start
+                ** where the finger landed, not where it has already reached.
+                */
+                int gx, gy;
+                TouchMode = TOUCH_DRAG;
+                Set_Video_Mouse_Absolute(TouchOriginX, TouchOriginY);
+                Get_Video_Mouse_Game(gx, gy);
+                Put_Mouse_Message(VK_LBUTTON, gx, gy, false);
+                DBG_INFO("TOUCH: -> DRAG from %d,%d", gx, gy);
+
+                Set_Video_Mouse_Absolute(win_x, win_y);
+            }
+            break;
+
+        case TOUCH_DRAG:
+            Set_Video_Mouse_Absolute(win_x, win_y);
+            break;
+
+        case TOUCH_PAN:
+            /*
+            ** Drive the engine's existing analog-scroll hook (built for
+            ** gamepad sticks, consumed in ScrollClass::AI). No game logic is
+            ** touched: the engine already asks the platform layer whether to
+            ** scroll and in which direction.
+            **
+            ** Direction is the slide vector from the anchor. Sliding right
+            ** scrolls the view right, so the map moves under a stationary
+            ** finger in the natural direction of travel.
+            */
+            if (moved_sq > TOUCH_PAN_DEADZONE_PX * TOUCH_PAN_DEADZONE_PX) {
+                AnalogScrollActive = true;
+
+                if (abs(dx) > 2 * abs(dy)) {
+                    ScrollDirection = (dx > 0) ? SDIR_E : SDIR_W;
+                } else if (abs(dy) > 2 * abs(dx)) {
+                    ScrollDirection = (dy > 0) ? SDIR_S : SDIR_N;
+                } else if (dx > 0) {
+                    ScrollDirection = (dy > 0) ? SDIR_SE : SDIR_NE;
+                } else {
+                    ScrollDirection = (dy > 0) ? SDIR_SW : SDIR_NW;
+                }
+            } else {
+                AnalogScrollActive = false;
+            }
+            break;
+
+        default:
+            break;
+        }
+        return;
+    }
+
+    if (type == SDL_FINGERUP) {
+        int gx, gy;
+
+        switch (TouchMode) {
+        case TOUCH_PENDING:
+            // Lifted before classifying and without travelling: a plain tap.
+            Set_Video_Mouse_Absolute(win_x, win_y);
+            Get_Video_Mouse_Game(gx, gy);
+            Put_Mouse_Message(VK_LBUTTON, gx, gy, false);
+            Put_Mouse_Message(VK_LBUTTON, gx, gy, true);
+            DBG_INFO("TOUCH: TAP at %d,%d", gx, gy);
+            break;
+
+        case TOUCH_DRAG:
+            Set_Video_Mouse_Absolute(win_x, win_y);
+            Get_Video_Mouse_Game(gx, gy);
+            Put_Mouse_Message(VK_LBUTTON, gx, gy, true);
+            DBG_INFO("TOUCH: DRAG end at %d,%d", gx, gy);
+            break;
+
+        case TOUCH_PAN:
+            AnalogScrollActive = false;
+            ScrollDirection = SDIR_NONE;
+            DBG_INFO("TOUCH: PAN end");
+            break;
+
+        default:
+            break;
+        }
+
+        TouchMode = TOUCH_IDLE;
+    }
+}
+#endif
+
 void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
 {
+#ifdef __ANDROID__
+    Update_Touch_Gesture();
+#endif
 #ifdef NETWORKING
     Process_Network();
 #endif
@@ -67,35 +220,9 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
         */
         case SDL_FINGERDOWN:
         case SDL_FINGERMOTION:
-        case SDL_FINGERUP: {
-            int tx, ty;
-
-            Set_Video_Mouse_Normalised(event.tfinger.x, event.tfinger.y);
-            Get_Video_Mouse_Game(tx, ty);
-
-            DBG_INFO("TOUCHFINGER %s id=%lld norm %.3f,%.3f -> game %d,%d",
-                     event.type == SDL_FINGERDOWN   ? "DOWN"
-                     : event.type == SDL_FINGERUP   ? "UP"
-                                                    : "MOVE",
-                     (long long)event.tfinger.fingerId,
-                     event.tfinger.x,
-                     event.tfinger.y,
-                     tx,
-                     ty);
-
-            /*
-            ** Synthesise the click ourselves. Touch-to-mouse synthesis is
-            ** disabled (SDL_HINT_TOUCH_MOUSE_EVENTS=0) so that the relative
-            ** Move_Video_Mouse path cannot fight the absolute placement above
-            ** within the same poll loop. A USB or Bluetooth mouse is
-            ** unaffected and still uses the ordinary mouse events below.
-            */
-            if (event.type == SDL_FINGERDOWN) {
-                Put_Mouse_Message(VK_LBUTTON, tx, ty, false);
-            } else if (event.type == SDL_FINGERUP) {
-                Put_Mouse_Message(VK_LBUTTON, tx, ty, true);
-            }
-        } break;
+        case SDL_FINGERUP:
+            Handle_Finger_Event(event.tfinger, event.type);
+            break;
 #endif
         case SDL_MOUSEMOTION:
 #ifdef __ANDROID__

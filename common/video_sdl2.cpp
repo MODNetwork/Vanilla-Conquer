@@ -631,6 +631,20 @@ void Set_Video_Mouse_Normalised(float nx, float ny)
 }
 
 /*
+** Renderer output size in pixels. The touch layer needs this to convert
+** SDL_TouchFingerEvent's normalised 0..1 coordinates into window pixels.
+*/
+void Get_Video_Output_Size(int& w, int& h)
+{
+    w = 0;
+    h = 0;
+
+    if (renderer != nullptr) {
+        SDL_GetRendererOutputSize(renderer, &w, &h);
+    }
+}
+
+/*
 ** Current cursor position in game coordinates. Used by the touch click path,
 ** which must not re-derive coordinates from the raw event: those are window
 ** coordinates and ignore render_dst's letterbox offset.

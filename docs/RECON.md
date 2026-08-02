@@ -545,3 +545,43 @@ two gates separate cleanly because a mouse exists from the start. On Android the
   touch translation, and verified as part of the Phase 5 loop rather than before it.
 
 No work changes; only the gate boundary moves so a gate is not left permanently unpassable.
+
+---
+
+## FAILURE LEDGER F-8 · 2026-08-02 · Touch positioning — RESOLVED by approach change
+
+**Symptom.** Cursor did not land under the finger. Dragging moved it; tapping never repositioned it.
+
+**Two failed fixes before the stall was declared.**
+1. Added `Set_Video_Mouse_Absolute()` and branched on `event.motion.which == SDL_TOUCH_MOUSEID`.
+   Failed.
+2. Extended the same branch to button events. Failed.
+
+**Stall declared per Agent Law 3.8** — the same approach had failed twice, so a third attempt was
+forbidden and the approach itself was re-examined.
+
+**Root approach error.** The code consumed **synthesised mouse events** and then asked whether they
+were "really" touch. That question depends on SDL hints and on whether Android reports the panel as
+a pointer device; on the Pixel 9 Pro Fold it answers no, so the branch never executed and every
+touch fell through to the relative `Move_Video_Mouse()` accumulator. Michael's own description was
+the decisive evidence: dragging worked (relative path live) while tapping did not reposition
+(absolute path never reached).
+
+**Resolution.** Consume touch at source: `SDL_FINGERDOWN` / `SDL_FINGERMOTION` / `SDL_FINGERUP`.
+These are unambiguous — only touch produces them — and carry normalised 0..1 window coordinates
+plus a `fingerId`. `Set_Video_Mouse_Normalised()` maps them through `render_dst`.
+
+**The non-obvious half of the fix.** `SDL_HINT_TOUCH_MOUSE_EVENTS` is set to `"0"`. Left enabled,
+every touch *also* emits a synthetic mouse-motion carrying a relative delta, which the relative
+path applies on top of the absolute placement **inside the same poll loop**. The two fight and the
+cursor never settles. Clicks are therefore dispatched from the finger events directly. A USB or
+Bluetooth mouse is unaffected and keeps the ordinary mouse path.
+
+**Why the failure was worth having.** `SDL_FINGER*` is the primitive Phase 5 requires regardless:
+drag-box needs finger-down versus current position, long-press needs finger-down duration, and
+two-finger pan needs multiple simultaneous `fingerId`s. Single-mouse synthesis collapses every
+finger into one pointer and **structurally cannot express any of them.** Had the mouse-synthesis
+approach appeared to work, gestures would have been built on a foundation that could not carry
+them, and the wall would have been hit later with far more code on top.
+
+**PASS confirmed by Michael 2026-08-02:** cursor lands under the finger and clicks register.

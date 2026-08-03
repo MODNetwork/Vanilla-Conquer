@@ -108,6 +108,36 @@ enumeration is treated as a "further restriction" under §10 and may be removed 
 **This is the newest instrument and the one we believe presents the real question.**
 Source: https://www.ea.com/games/command-and-conquer/modding-faq — fetched and read.
 
+**Critical context discovered after this briefing was first drafted, and it sharpens Q1
+considerably.** The policy revision is not a coincidence of timing. On the *same day*, 27 February
+2025, EA published a source-code release announcement and expressly tied the two together.
+
+Source: https://www.ea.com/games/command-and-conquer/command-and-conquer-remastered/news/steam-workshop-support
+— fetched and read; page metadata confirms published and modified `2025-02-27`.
+
+On that date EA released, under GPL, the source for **four** titles:
+
+- https://github.com/electronicarts/CnC_Tiberian_Dawn — *"fully recovered source code"*
+- https://github.com/electronicarts/CnC_Red_Alert — *"fully recovered source code"*
+- https://github.com/electronicarts/CnC_Renegade
+- https://github.com/electronicarts/CnC_Generals_Zero_Hour
+
+And in the same announcement, verbatim:
+
+> "As with our previous Modding initiatives, user generated content for C&C titles fall under the
+> [Command & Conquer Franchise Modding Guidelines], **which have been updated to reflect this
+> initiative.**"
+
+**Why this matters to Q1.** EA is stating, in the announcement of the GPL source release itself,
+that the modding guidelines were updated *because of* that release and that they govern what the
+community builds with it. That is the strongest available evidence that EA intends the policy to
+reach work built on the released source — which is exactly what this application is.
+
+It is evidence of intent, not a legal conclusion, and it does not resolve whether a policy can
+validly constrain rights already granted under GPL v3 (see Q1's sub-question on §10). But counsel
+should not treat the modding policy as a document aimed only at content mods. **EA connected it to
+the source release explicitly.**
+
 Verbatim:
 
 > "**Intellectual property ownership; license from EA.** C&C assets, including game code, art,

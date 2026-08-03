@@ -1,0 +1,196 @@
+================================================================================
+COMMAND POST - THIRD PARTY LICENCES
+================================================================================
+
+This file lists every third-party component distributed inside the Command Post
+Android application, together with its licence and the obligations that licence
+places on this distribution.
+
+Every entry below was verified by reading the licence file shipped in that
+component's own source tree. None was assumed from reputation or from a package
+manager's metadata.
+
+This application contains NO Command & Conquer game data. Artwork, audio, video
+and mission data remain the property of Electronic Arts Inc. and must be
+supplied by the user from a copy they obtain themselves. See ASSETS below.
+
+================================================================================
+1. VANILLA-CONQUER ENGINE  (and the Electronic Arts source it derives from)
+================================================================================
+
+Licence:  GNU General Public License v3, with additional terms under GPL v3
+          Section 7 imposed by Electronic Arts Inc.
+Source:   License.txt, shipped alongside this file, 714 lines, complete.
+
+Copyright 2020 Electronic Arts Inc.
+
+Electronic Arts Inc. released the TiberianDawn.dll and RedAlert.dll source code
+under GPL v3 with additional terms. On 27 February 2025 Electronic Arts further
+released the fully recovered original source for Command & Conquer (Tiberian
+Dawn) and Command & Conquer Red Alert under the same licence.
+
+EA's additional terms under GPL v3 Section 7 are reproduced in full in
+License.txt at lines 680-714 and are passed downstream intact, as those terms
+require. In summary, and without substituting for the actual text:
+
+  - No trademark or publicity rights are granted. This distribution claims no
+    right, title or interest in "Command & Conquer" or any other Electronic
+    Arts trademark, and claims no affiliation or association with Electronic
+    Arts Inc., its affiliates, or their employees.
+  - Any propagation or conveyance must include EA's copyright notice and terms.
+    That is what this file and the accompanying License.txt do.
+  - Modified versions must be marked as such and not identified as the original
+    program. See MODIFICATION NOTICE below.
+
+  ---- MODIFICATION NOTICE (GPL v3 Section 5(a), and EA's own term) ----
+
+  THIS IS A MODIFIED VERSION OF THE PROGRAM. IT IS NOT THE ORIGINAL PROGRAM
+  AND IS NOT ENDORSED BY, AFFILIATED WITH, OR ASSOCIATED WITH ELECTRONIC ARTS
+  INC.
+
+  Modifications are confined to the platform layer: Android windowing and
+  display handling, touch input, audio backend selection, and filesystem paths.
+  No game logic, game balance, mission data or rules were altered.
+
+  Upstream project: Vanilla-Conquer (https://github.com/TheAssemblyArmada/Vanilla-Conquer)
+  Original source:  https://github.com/electronicarts/CnC_Tiberian_Dawn
+                    https://github.com/electronicarts/CnC_Red_Alert
+
+  ---- CORRESPONDING SOURCE (GPL v3 Section 6) ----
+
+  Complete corresponding source for the exact version of this application,
+  including all platform-layer modifications and the scripts and configuration
+  used to build it, is available at the repository named in the About screen.
+
+================================================================================
+2. SDL2  (Simple DirectMedia Layer)
+================================================================================
+
+Licence:  zlib licence
+Verified: android/app/jni/SDL/LICENSE.txt, read in full.
+Bundled:  YES - libSDL2.so, inside the APK.
+
+Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
+
+This software is provided 'as-is', without any express or implied
+warranty.  In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+3. This notice may not be removed or altered from any source distribution.
+
+Acknowledgment, per restriction 1: this product uses SDL2 by Sam Lantinga and
+the SDL contributors. SDL2 is not modified in this distribution.
+
+================================================================================
+3. OPENAL SOFT
+================================================================================
+
+Licence:  GNU Library General Public License, Version 2, June 1991 (LGPL v2)
+Verified: android/app/jni/openal-soft/COPYING, read directly.
+Version:  1.24.3
+Bundled:  YES - libopenal.so, inside the APK.
+
+  ---- LGPL RELINKING OBLIGATION, AND HOW IT IS SATISFIED ----
+
+  LGPL v2 differs from the GPL in a way that matters here: it requires that a
+  user be able to replace the library with a modified version of their own and
+  relink the application against it.
+
+  This distribution satisfies that by DYNAMIC LINKING. openal-soft is built as
+  a separate shared object, libopenal.so, and is loaded at runtime by the
+  dynamic linker. It is not statically linked into the application binary. A
+  user may substitute their own build of libopenal.so.
+
+  Verified: the application library libvanillatd.so carries a DT_NEEDED entry
+  for libopenal.so, and libopenal.so ships as a discrete file inside the APK
+  under lib/arm64-v8a/. Confirmed with llvm-readelf and by listing the APK.
+
+  openal-soft is unmodified in this distribution.
+
+  Complete corresponding source for openal-soft is available at
+  https://github.com/kcat/openal-soft and is pinned in this project's
+  repository as a git submodule at a specific commit.
+
+  ---- COMPONENTS WITHIN OPENAL SOFT UNDER OTHER LICENCES ----
+
+  Portions under the BSD 3-Clause licence
+  (android/app/jni/openal-soft/BSD-3Clause):
+
+    Copyright (c) 2015, Archontis Politis
+    Copyright (c) 2019, Anis A. Hireche
+    Copyright (c) 2019, Christopher Robinson
+    All rights reserved.
+
+  A modified PFFFT is included (android/app/jni/openal-soft/LICENSE-pffft):
+
+    Copyright (c) 2023  Christopher Robinson
+    Copyright (c) 2013  Julien Pommier ( pommier@modartt.com )
+    Copyright (c) 2004 the University Corporation for Atmospheric
+    Research ("UCAR"). All rights reserved. Developed by NCAR's
+    Computational and Information Systems Laboratory, UCAR,
+    www.cisl.ucar.edu.
+
+  The full text of all three licences ships in the openal-soft source tree and
+  is reproduced with the corresponding source.
+
+================================================================================
+4. ANDROID SDL TEMPLATE / org.libsdl.app JAVA CLASSES
+================================================================================
+
+Licence:  zlib licence, as part of SDL2 (see section 2).
+Bundled:  YES - compiled into the APK's dex.
+
+The Java classes under org.libsdl.app are SDL2's own Android support classes,
+used unmodified. The application's own activity class subclasses SDLActivity
+and is original work under GPL v3.
+
+================================================================================
+5. REFERENCE MATERIAL CONSULTED (not distributed)
+================================================================================
+
+An existing Android port of Vanilla-Conquer by the GitHub user "sandstranger"
+was read during development as a reference for how the platform layer could be
+structured. No code from it was copied or merged into this project; it was used
+as a map, not as a source. Acknowledged here because the debt is real even
+though nothing was taken.
+
+================================================================================
+ASSETS - IMPORTANT
+================================================================================
+
+Command & Conquer game data files (.MIX files: artwork, audio, video, mission
+data) are NOT included in this application, are NOT distributed with it, and
+are NOT covered by the GPL release. They remain the copyright of Electronic
+Arts Inc.
+
+Electronic Arts released only the game ENGINE source code under the GPL. The
+game data was not released under any open licence.
+
+Users must supply their own data files from a copy of the game they obtain
+themselves. The application reads them from external storage at runtime and
+will not run without them.
+
+This is not a technical limitation that might later be relaxed. It is a
+deliberate and permanent property of this software.
+
+================================================================================
+TRADEMARKS
+================================================================================
+
+Command & Conquer, Tiberian Dawn, Red Alert, and Electronic Arts are
+trademarks of Electronic Arts Inc. This application is not affiliated with,
+endorsed by, or associated with Electronic Arts Inc. in any way. Those marks
+are referred to here solely to identify the game data the engine reads, which
+is nominative use, and are not used as the identity of this application.
+
+================================================================================

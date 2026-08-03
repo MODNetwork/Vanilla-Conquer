@@ -27,6 +27,10 @@ public:
         bool Windowed;
         bool Boxing;
         std::string BoxingAspectRatio;
+        // Android touch pan: false = slide right scrolls the view right,
+        // true = grab-the-map, slide right moves the map right. Preference
+        // only; set TouchPanInvert in CONQUER.INI, no rebuild required.
+        bool TouchPanInvert;
         int Width;
         int Height;
         int FrameLimit;

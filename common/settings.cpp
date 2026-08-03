@@ -34,6 +34,7 @@ SettingsClass::SettingsClass()
 #else
     Video.BoxingAspectRatio = "16:10";
 #endif
+    Video.TouchPanInvert = false;
     Video.FrameLimit = 120;
     Video.InterpolationMode = 2;
     Video.HardwareCursor = false;
@@ -68,6 +69,7 @@ void SettingsClass::Load(INIClass& ini)
     Video.Windowed = ini.Get_Bool("Video", "Windowed", Video.Windowed);
     Video.Boxing = ini.Get_Bool("Video", "Boxing", Video.Boxing);
     Video.BoxingAspectRatio = ini.Get_String("Video", "BoxingAspectRatio", Video.BoxingAspectRatio);
+    Video.TouchPanInvert = ini.Get_Bool("Video", "TouchPanInvert", Video.TouchPanInvert);
     Video.Width = ini.Get_Int("Video", "Width", Video.Width);
     Video.Height = ini.Get_Int("Video", "Height", Video.Height);
     Video.FrameLimit = ini.Get_Int("Video", "FrameLimit", Video.FrameLimit);

@@ -81,7 +81,10 @@ private:
     int TouchOriginY = 0;
     uint32_t TouchStartMs = 0;
 
+    uint32_t PanFrameCount = 0;
+
     void Handle_Finger_Event(const SDL_TouchFingerEvent& finger, uint32_t type);
     void Update_Touch_Gesture();
+    void Log_Pan_State();
 #endif
 };

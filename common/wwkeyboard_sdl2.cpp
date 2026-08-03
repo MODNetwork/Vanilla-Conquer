@@ -51,6 +51,28 @@ void WWKeyboardClassSDL2::Update_Touch_Gesture()
     }
 }
 
+/*
+** Report how long the scroll request has been continuously active. If the view
+** stops moving while this keeps climbing, the platform layer is doing its job
+** and the limit is inside the engine (scenario bounds or shroud), not here.
+*/
+void WWKeyboardClassSDL2::Log_Pan_State()
+{
+    if (TouchMode != TOUCH_PAN) {
+        PanFrameCount = 0;
+        return;
+    }
+
+    ++PanFrameCount;
+
+    if ((PanFrameCount % 30) == 0) {
+        DBG_INFO("TOUCH: PAN active frame %u  scrollActive=%d dir=%u",
+                 (unsigned)PanFrameCount,
+                 (int)AnalogScrollActive,
+                 (unsigned)ScrollDirection);
+    }
+}
+
 void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger, uint32_t type)
 {
     int out_w = 0, out_h = 0;
@@ -127,14 +149,22 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
             if (moved_sq > TOUCH_PAN_DEADZONE_PX * TOUCH_PAN_DEADZONE_PX) {
                 AnalogScrollActive = true;
 
-                if (abs(dx) > 2 * abs(dy)) {
-                    ScrollDirection = (dx > 0) ? SDIR_E : SDIR_W;
-                } else if (abs(dy) > 2 * abs(dx)) {
-                    ScrollDirection = (dy > 0) ? SDIR_S : SDIR_N;
-                } else if (dx > 0) {
-                    ScrollDirection = (dy > 0) ? SDIR_SE : SDIR_NE;
+                /*
+                ** TouchPanInvert flips to a grab-the-map feel: sliding right
+                ** drags the map right, so the view travels left. Purely
+                ** preference; set in CONQUER.INI, no rebuild.
+                */
+                const int pdx = Settings.Video.TouchPanInvert ? -dx : dx;
+                const int pdy = Settings.Video.TouchPanInvert ? -dy : dy;
+
+                if (abs(pdx) > 2 * abs(pdy)) {
+                    ScrollDirection = (pdx > 0) ? SDIR_E : SDIR_W;
+                } else if (abs(pdy) > 2 * abs(pdx)) {
+                    ScrollDirection = (pdy > 0) ? SDIR_S : SDIR_N;
+                } else if (pdx > 0) {
+                    ScrollDirection = (pdy > 0) ? SDIR_SE : SDIR_NE;
                 } else {
-                    ScrollDirection = (dy > 0) ? SDIR_SW : SDIR_NW;
+                    ScrollDirection = (pdy > 0) ? SDIR_SW : SDIR_NW;
                 }
             } else {
                 AnalogScrollActive = false;
@@ -186,6 +216,7 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
 {
 #ifdef __ANDROID__
     Update_Touch_Gesture();
+    Log_Pan_State();
 #endif
 #ifdef NETWORKING
     Process_Network();

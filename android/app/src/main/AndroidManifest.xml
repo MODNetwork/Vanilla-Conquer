@@ -73,8 +73,15 @@
              The engine library is chosen before SDL loads it, because a native
              library cannot be unloaded and swapped once the engine owns the
              process. -->
+        <!-- D-26: the picker runs in its own process. An engine library cannot
+             be unloaded once System.loadLibrary() has taken it, so returning
+             from a title kills the game process to discard it. The picker must
+             survive that, and must never share a process with an engine, or
+             choosing the second title would load a second engine alongside the
+             first. -->
         <activity android:name="dev.pricharda.commandpost.LauncherActivity"
             android:label="@string/app_name"
+            android:process=":launcher"
             android:screenOrientation="sensorLandscape"
             android:resizeableActivity="true"
             android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"

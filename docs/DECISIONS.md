@@ -631,3 +631,69 @@ downstream of that answer is wasted effort until it is known. Kill-or-continue.
 **Sequencing consequence.** Because Michael requires all titles present before signing (no second
 signing pass), the Generals answer gates the release. The spike therefore comes before the
 performance pass and long before signing.
+
+---
+
+## D-26 · 2026-08-03 · Exit-to-picker is hooked at the engine's exit, not at a gesture
+
+**Michael's request:** *"the games will each need a way to exit back to menu and I propose the
+2finger esc at main menu screen."*
+
+**Implemented differently, and this needs stating plainly rather than glossed.** The requirement —
+every title needs a route back to the picker — is met in full. The proposed *mechanism* is not what
+was built, for a reason that is technical rather than preferential.
+
+**Why the gesture cannot do it.** Two-finger tap already emits `KN_ESC` unconditionally (D-19 era
+work). To make it *also* mean "exit the game", the platform layer would have to know the engine is
+sitting on its main menu. It cannot: the touch handler lives in `common/wwkeyboard_sdl2.cpp` and
+has no access to game state, and giving it that access would mean reading game logic from the
+platform layer — the one line this port has held since Phase 3. Detecting "main menu" would also
+be fragile, because the engine reuses the same menu machinery for several screens.
+
+**What was built instead — `CommandPostActivity.finish()` is overridden.** When `SDL_main` returns,
+SDL's own `SDLMain.run()` calls `mSingleton.finish()` (`SDLActivity.java:1894`). Overriding
+`finish()` therefore intercepts the engine's exit by **every** route at once:
+
+| Exit route | Caught? |
+|---|---|
+| Main menu's own **Exit** item (`SEL_EXIT`, `init.cpp:1291`) | yes |
+| `Prog_End()` (`startup.cpp:540`) | yes |
+| `SDL_QUIT` | yes |
+
+Zero C++ changes. Zero game logic. One override rather than a hook duplicated into both
+`tiberiandawn/` and `redalert/`.
+
+**This is arguably better than the gesture, not merely easier.** The main menu already displays a
+visible **Exit** item. Using it is discoverable by anyone who opens the game; a hidden two-finger
+gesture is not. The engine's existing, correct shutdown path also runs — fades, `Sound_End()`,
+mouse and palette teardown — where a gesture-triggered exit would have to either duplicate that or
+skip it.
+
+**The process hazard this exposed, and why the picker now runs in `:launcher`.** An engine library
+loaded with `System.loadLibrary()` **cannot be unloaded**. If the game process survived a return to
+the picker and the user then chose the other title, `libvanillara.so` would load into a process
+already holding `libvanillatd.so`: two libraries both exporting `SDL_main`, two sets of engine
+globals, and `SDLActivity`'s static singleton state left over from the previous run. That is a
+corruption waiting to happen, not a theoretical concern.
+
+Resolved declaratively. `LauncherActivity` is given `android:process=":launcher"`, and
+`finish()` kills the game process after starting the picker. The picker therefore always survives,
+never shares a process with an engine, and every title starts in a clean process.
+
+**Verified on device:**
+
+```
+u0_a461  9057  dev.pricharda.commandpost:launcher
+u0_a461  9466  dev.pricharda.commandpost
+```
+
+Two processes, running simultaneously and independently, exactly as designed.
+
+**NOT verified.** The exit itself has not been exercised — that requires an awake device and a
+human selecting **Exit** from a game's main menu. Process separation is proven; the round trip is
+not.
+
+**Open for Michael's ruling.** If he still wants the gesture specifically, the honest options are:
+(1) accept the menu item, which is what is built; (2) bind the Android **back** gesture to exit,
+which is idiomatic and needs no game state; or (3) add main-menu detection, which breaks the
+platform-layer boundary and is not recommended.

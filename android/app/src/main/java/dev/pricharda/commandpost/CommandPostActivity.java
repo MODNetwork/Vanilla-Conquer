@@ -114,4 +114,42 @@ public class CommandPostActivity extends SDLActivity {
         super.onResume();
         applyImmersiveMode();
     }
+
+    /**
+     * Return to the Command Post title picker when the engine exits, instead of
+     * dropping the user onto the home screen.
+     *
+     * D-26. This is the seam rather than a chosen convenience: when SDL_main
+     * returns, SDLActivity's own SDLMain.run() calls mSingleton.finish()
+     * (SDLActivity.java:1894). Overriding finish() therefore catches the
+     * engine's exit by EVERY route - the main menu's own Exit item, the
+     * engine's Prog_End() path, or an SDL_QUIT - without touching game logic or
+     * duplicating a hook into both tiberiandawn/ and redalert/.
+     *
+     * Why the process is killed rather than reused. The engine library is
+     * loaded with System.loadLibrary() and cannot be unloaded. Reusing this
+     * process to launch the other title would mean loading libvanillara.so into
+     * a process that already holds libvanillatd.so - two engines exporting
+     * SDL_main, two sets of engine globals, and SDLActivity's static singleton
+     * state left over from the previous run. LauncherActivity runs in its own
+     * process (see AndroidManifest), so killing this one leaves the picker
+     * untouched and guarantees the next title starts clean.
+     */
+    @Override
+    public void finish() {
+        // Guard against re-entry: finish() can be called more than once during
+        // teardown, and launching the picker twice would stack it.
+        if (!isFinishing()) {
+            final Intent picker = new Intent(this, LauncherActivity.class);
+            picker.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            startActivity(picker);
+        }
+
+        super.finish();
+
+        // Tear down this process so the loaded engine library goes with it.
+        // Done after super.finish() and after the picker has been started, so
+        // the picker - which lives in a different process - is unaffected.
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }
 }

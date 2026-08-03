@@ -693,14 +693,40 @@ is assuming the discovery mechanism's silence is the device's silence.
 
 ---
 
-### OPEN · Suspected defect raised alongside the Gate 6 audio PASS
+### CLOSED · Suspected defect raised alongside the Gate 6 audio PASS · NOT A DEFECT
 
 Michael reported a possible bug at the same moment he passed audio, and asked for the desktop
-build to be launched as a reference so he could establish whether the behaviour is a port defect
-or original 1995 engine behaviour. Desktop `vanillatd.exe` was started from `C:\DEV\_cnc-run`
+build to be launched as a reference. Desktop `vanillatd.exe` was started from `C:\DEV\_cnc-run`
 (PID 27032) for that comparison.
 
-**The symptom has not yet been described, so nothing has been diagnosed and nothing changed.**
-Recorded here as an open item rather than acted on, per the standing rule from D-18: a symptom
-reported once and not reproduced by measurement is a lead, not a defect, and must never be fixed
-against speculatively.
+**Michael's finding, verbatim:** *"audio in desktop does not work - audio in game does! There is
+actually no bug to note otherwise besides the DESKTOP game's audio."*
+
+**Diagnosis: the Windows reference build has no audio backend compiled into it.** Two independent
+confirmations:
+
+| Probe | Result |
+|---|---|
+| `dumpbin /DEPENDENTS vanillatd.exe` | imports `SDL2.dll` only — no `OpenAL32.dll`, no `dsound.dll` |
+| `build-win/CMakeCache.txt` | `OPENAL:BOOL=OFF`, `DSOUND:BOOL=OFF` |
+
+With both backends off, the engine links `common/soundio_null.cpp`. The desktop build is silent
+**by design**, not by fault. Nothing is wrong with the engine, the assets, or the Android port.
+
+**Why the inversion looked alarming and was not.** The natural reading of "the phone has audio and
+the PC does not" is that the port introduced something. The opposite is true: Android is the only
+target that has ever had an audio backend wired in, as of commit `4dc2a9f` earlier today. Desktop
+never did.
+
+**No prior conclusion is invalidated.** The desktop reference has been used in this project only
+for visual and input questions — most significantly the Gate 5 map-extent A/B. None of those
+depended on sound.
+
+**Standing limitation, recorded so it is not rediscovered later.** `C:\DEV\_cnc-run\vanillatd.exe`
+cannot serve as an A/B reference for any audio question until it is rebuilt with `-DOPENAL=ON`.
+Left as-is for now rather than rebuilt unilaterally: it is the established Windows baseline, and
+Law 3.1 treats a baseline as something you do not quietly replace mid-gate.
+
+**Credit where due.** Michael flagged an anomaly he could not yet explain rather than dismissing
+it, and the check cost minutes. Had it gone the other way it would have been a real defect found
+before Gate 7.

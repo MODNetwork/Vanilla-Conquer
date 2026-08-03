@@ -396,3 +396,37 @@ opening a second line of investigation off an unverified report.
 **Standing rule.** A symptom reported once and not reproduced by measurement is a lead, not a
 defect. Do not carry it as an open work item without a probe that confirms it, and never fix
 against it — that is how effort gets spent on problems that do not exist.
+
+---
+
+## D-19 · 2026-08-02 · Touch pan direction is inverted (grab-the-map) by default
+
+**Decision.** `Video.TouchPanInvert` defaults to `true` on Android. Sliding drags the map with the
+finger. Desktop is unaffected.
+
+**Rationale.** Settled by live A/B on the target device rather than by agent preference. The agent
+had originally hardcoded slide-right-scrolls-right without surfacing that a choice existed; making
+it a setting first, then having Michael feel both, is what produced the answer.
+
+**Reversible.** `TouchPanInvert=false` in `CONQUER.INI`, no rebuild. Verified by deleting
+`CONQUER.INI` from the device entirely so the compiled-in default is what runs — testing a pushed
+override would only have proven the INI parser works.
+
+---
+
+## D-20 · 2026-08-02 · Gate 5 closed on input completeness; soak testing moved to Gates 6 and 7
+
+**Decision.** Gate 5 closes on verified input completeness. The "play mission 1 to a win"
+requirement is struck as a Phase 5 criterion.
+
+**Rationale.** The criterion bundled an input test with a stability test. Every touch interaction
+is verified; a full playthrough would additionally have exercised long-session stability and
+many-unit performance, neither of which is an input concern. Keeping the gate open would have
+gated a finished input layer on evidence about something else.
+
+**Where the deferred coverage lands.** Gate 6 already tests lifecycle under real play. Gate 7
+already requires a performance pass. Both are strengthened by absorbing this rather than weakened.
+
+**Recorded risk.** If a crash or frame-rate collapse appears during extended play, it will surface
+at Gate 6 or 7 rather than Gate 5. That is a sequencing change, not a reduction in coverage — but
+it does mean nobody should read "Gate 5 passed" as "the port was soak-tested."

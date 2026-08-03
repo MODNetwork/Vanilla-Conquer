@@ -585,3 +585,39 @@ approach appeared to work, gestures would have been built on a foundation that c
 them, and the wall would have been hit later with far more code on top.
 
 **PASS confirmed by Michael 2026-08-02:** cursor lands under the finger and clicks register.
+
+---
+
+## GATE 5 · PASS · 2026-08-02 (Michael)
+
+**Report, verbatim:** *"all touch functions work correctly in every in-game scenario, playing a
+level is just self-gratification and unnecessary."*
+
+**Criterion as written:** *"Full GDI mission 1 playable start-to-finish by touch alone: build base,
+train units, box-select, attack-move, win."*
+
+**Ruling accepted.** Michael holds gate authority; a PASS is recorded verbatim and not softened.
+
+**The gate text was the problem, not the judgment.** It conflated two separate concerns:
+
+| Concern | Belongs to | Status |
+|---|---|---|
+| Does every touch interaction work | Phase 5 | **verified across all in-game scenarios** |
+| Does the game hold up for a full mission | soak / stability | **not tested** |
+
+The second was never an input question. Requiring a full playthrough to close an *input* gate
+meant a stability test was smuggled into Phase 5 by accident.
+
+**Verified touch interactions:** tap select and order, drag-box marquee, hold-and-slide pan,
+sidebar hit targets, in-game menus and options. Pan direction settled by live A/B on device
+(D-19).
+
+**Explicitly NOT verified, and deferred rather than assumed:**
+- Long-session stability (does the engine survive 20+ minutes of play)
+- Performance under load (many units, heavy combat)
+- Building placement as a distinct two-step interaction, if not already exercised
+
+These now attach to **Gate 6** (lifecycle: sleep, resume, save, force-kill, reload, fold/unfold)
+and **Gate 7** (performance pass: sustained 60fps or a documented floor, battery and thermal
+sanity). That is where they always belonged. They are recorded here so that nobody later mistakes
+"Gate 5 passed" for "the port was soak-tested."

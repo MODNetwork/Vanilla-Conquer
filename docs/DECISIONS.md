@@ -430,3 +430,50 @@ already requires a performance pass. Both are strengthened by absorbing this rat
 **Recorded risk.** If a crash or frame-rate collapse appears during extended play, it will surface
 at Gate 6 or 7 rather than Gate 5. That is a sequencing change, not a reduction in coverage — but
 it does mean nobody should read "Gate 5 passed" as "the port was soak-tested."
+
+---
+
+## D-21 · 2026-08-02 · Audio backend is openal-soft as a pinned submodule, built before the engine
+
+**Decision.** `openal-soft` 1.24.3 is pinned as a submodule at `android/app/jni/openal-soft`
+(commit `dc7d705`) and `OPENAL` is flipped `ON` for the Android build. The submodule is added to
+CMake **before** the engine subdirectory, and `OPENAL_LIBRARY` / `OPENAL_INCLUDE_DIR` are seeded
+as cache variables.
+
+**Rationale for the ordering.** openal-soft defines `OpenAL::OpenAL` as an `ALIAS` target
+(`openal-soft/CMakeLists.txt:1643`). The engine's `cmake/FindOpenAL.cmake` guards its own target
+creation with `if(NOT TARGET OpenAL::OpenAL)` (line 142). Building openal-soft first means the
+finder sees the real target and leaves it alone. Reverse the order and the finder wins, creating
+an `UNKNOWN IMPORTED` target pointing at a library file that does not exist at configure time.
+
+**Rationale for the seeded cache variables.** `FIND_PACKAGE_HANDLE_STANDARD_ARGS` still demands
+both variables even when the target already exists, and `find_library()` cannot resolve a target
+built in the same configure run. This is the identical pattern already used for
+`SDL2_LIBRARY` / `SDL2_SDLMAIN_LIBRARY` — not a new mechanism.
+
+**Verified this session (build evidence, not runtime evidence).**
+
+| Claim | How it was checked | Result |
+|---|---|---|
+| openal-soft compiles for arm64-v8a | `libopenal.so` in `stripped_native_libs` | 3,623,976 bytes |
+| It ships in the APK | zip listing of `app-debug.apk` | `lib/arm64-v8a/libopenal.so` present |
+| The engine links against it | `llvm-readelf -d libvanillatd.so` | `NEEDED libopenal.so` |
+| The OpenSL backend is compiled in | object listing under `alc/backends/` | `opensl.cpp.o`, 892,856 bytes |
+| AL entry points are exported | `llvm-nm -D --defined-only` | `alcOpenDevice`, `alSourcePlay`, `alGenBuffers` |
+
+**A false alarm worth recording.** `libopenal.so` carries no `NEEDED` entry for `libOpenSLES.so`,
+which on its face looks like the null backend and silence. It is not: openal-soft `dlopen`s
+`libOpenSLES.so` by name at runtime. The embedded string `libOpenSLES.so` and `dlopen@LIBC` as
+the only related undefined symbol are the evidence. The lesson is the check, not the outcome —
+"it compiled and packaged" would not have distinguished the two cases.
+
+**Not yet verified.** No sound has been heard. Linking is not audio. Runtime device init,
+`SOUNDS.MIX` effects, `SPEECH.MIX` EVA voice and `SCORES.MIX` music are all open until Michael
+reports from the device.
+
+**Asset dependency.** `SCORES.MIX` (37.3 MB) is still not on the device, so music cannot be judged
+until it is pushed. Sound effects and EVA speech do not depend on it and can be judged first.
+
+**No Java change.** `getLibraries()` still returns `{"SDL2","vanillatd"}`. The `NEEDED` entry makes
+the dynamic linker load `libopenal.so` automatically; adding it to the list would be an invented
+requirement (Law 1.10).

@@ -1,3 +1,6 @@
 [submodule "android/app/jni/SDL"]
 	path = android/app/jni/SDL
 	url = https://github.com/libsdl-org/SDL.git
+[submodule "android/app/jni/openal-soft"]
+	path = android/app/jni/openal-soft
+	url = https://github.com/kcat/openal-soft.git

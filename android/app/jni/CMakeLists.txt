@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(VC95)
+project(CommandPost)
 
 # SDL2 sources live in the pinned submodule at ./SDL
 add_subdirectory(SDL)

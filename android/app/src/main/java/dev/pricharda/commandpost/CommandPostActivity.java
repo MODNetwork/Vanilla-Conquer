@@ -1,4 +1,4 @@
-package dev.pricharda.vc95;
+package dev.pricharda.commandpost;
 
 import android.os.Build;
 import android.view.View;
@@ -20,7 +20,7 @@ import org.libsdl.app.SDLActivity;
  * post-Gate-7 this is the single place that selects which engine library
  * loads; nothing else in the platform layer assumes one game.
  */
-public class VC95Activity extends SDLActivity {
+public class CommandPostActivity extends SDLActivity {
 
     @Override
     protected String[] getLibraries() {

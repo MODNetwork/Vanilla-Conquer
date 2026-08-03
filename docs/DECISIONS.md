@@ -261,8 +261,8 @@ name are **separable**.
 
 | Field | Value | Rationale |
 |---|---|---|
-| Package id | `dev.pricharda.vc95` | Reverse-DNS under Michael's personal namespace. No EA mark. No MOD OS / TCG identifier (entity wall). |
-| Display name (placeholder) | `VC95` | Neutral. Replaced before Gate 7. |
+| Package id | `dev.pricharda.vc95` | **SUPERSEDED by D-22 on 2026-08-02.** Reverse-DNS under Michael's personal namespace. No EA mark. No MOD OS / TCG identifier (entity wall). |
+| Display name (placeholder) | `VC95` | **SUPERSEDED by D-22 on 2026-08-02.** Neutral placeholder. |
 | Internal build target names | `vanillatd`, `vanillara` | Upstream's own names, already public and GPL-attributed. Internal target names are not product identity and carry materially lower risk than app name or package id. |
 
 **Deferred to Michael — display name, three options, lowest risk first:**
@@ -477,3 +477,65 @@ until it is pushed. Sound effects and EVA speech do not depend on it and can be 
 **No Java change.** `getLibraries()` still returns `{"SDL2","vanillatd"}`. The `NEEDED` entry makes
 the dynamic linker load `libopenal.so` automatically; adding it to the list would be an invented
 requirement (Law 1.10).
+
+---
+
+## D-22 · 2026-08-02 · Product identity settled: Command Post, with Dawn and Red · SUPERSEDES D-12
+
+**Michael's ruling:** *"I do not want dev.pricharda.vc95 at all - fix it to something we just
+discussed.... option 1 for me dawg!"*
+
+| Field | Old (D-12) | New | Where |
+|---|---|---|---|
+| Package id | `dev.pricharda.vc95` | `dev.pricharda.commandpost` | `build.gradle` namespace + applicationId |
+| Activity | `VC95Activity` | `CommandPostActivity` | Java class, package dir, manifest |
+| Display name | `VC95` | **Command Post** | `strings.xml` `app_name` |
+| Title 1 (TD) | — | **Dawn** | `strings.xml` `title_td` |
+| Title 2 (RA) | — | **Red** | `strings.xml` `title_ra` |
+| CMake project | `VC95` | `CommandPost` | `android/app/jni/CMakeLists.txt` |
+
+**Trademark reasoning.** The distinctive half of EA's mark is **"Conquer," not "Command."**
+"Command" alone is an ordinary English word EA cannot monopolise, and "Command Post" is a generic
+military term in common usage. Neither the app name nor the package id contains an EA mark, which
+is what EA's GPL v3 §7 additional terms require. The two titles are labelled **Dawn** and **Red** —
+bare common words — not "Tiberian Dawn" and "Red Alert," which are EA marks.
+
+**Rejected: "Com&Conq" and "CAC."** `Com&Conq` retains both initial syllables *and* the ampersand
+of the EA mark, on a product that is that game; under a sight-sound-meaning comparison that is
+close, and the intent to evoke is self-evident. `CAC` is less similar visually but in context still
+functions as a pointer to the mark, and is weak branding besides. Neither bought anything that
+"Command Post" does not.
+
+**Timing.** D-12 warned that a late package-id change is expensive: it binds the signing identity
+and `SDL_AndroidGetInternalStoragePath()`, so it moves save and config paths and forces a Gate 6
+re-test. Doing it **now** — after Gate 6 part 1 (audio) and *before* Gate 6 part 2 (lifecycle) —
+costs almost nothing, because no lifecycle result exists yet to invalidate and no saves exist
+(Michael cannot save yet; see the open soft-keyboard defect). A week later this would have been
+genuinely painful.
+
+**Assets were moved, not re-pushed.** `cp -a` on device from the old external files directory to
+the new one preserved all 18 MIX files including `MOVIES.MIX` at 449,080,410 bytes — byte-exact,
+no 449 MB re-transfer. Old package uninstalled and old asset directory removed only *after* the
+app was confirmed running under the new id.
+
+**Verified end to end on device:**
+
+```
+Android: game data path is '/storage/emulated/0/Android/data/dev.pricharda.commandpost/files'
+Android: user data path is '/data/data/dev.pricharda.commandpost/files'
+OpenAL: device open, context current. Renderer 'OpenAL Soft', 16 bit, mono, 22050 Hz.
+C&C95 - About to register MOVIES.MIX
+C&C95 - About to play the intro movie
+pm list packages | grep pricharda  ->  package:dev.pricharda.commandpost
+```
+
+No `FATAL` and no `AndroidRuntime` exception — which matters, because F-3 was a
+`ClassNotFoundException` caused by exactly this kind of activity-name change.
+
+**Historical records were not rewritten.** `docs/RECON.md` still contains `dev.pricharda.vc95` in
+the F-3 crash log and the Gate 6 `dumpsys` capture. Those are verbatim captured evidence from the
+time they were taken; editing them would falsify the record. D-12's table is marked SUPERSEDED
+rather than overwritten, for the same reason.
+
+**Now permanent.** A Play Store package id can never be changed after first publication. If this
+ships, `dev.pricharda.commandpost` is forever.

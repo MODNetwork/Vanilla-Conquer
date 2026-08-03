@@ -1,8 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Display name is a PLACEHOLDER pending D-12. It must not contain any
-     Electronic Arts trademark (EA GPL v3 section 7 additional terms) and must
-     not contain MOD OS or CoCreate identifiers (entity wall, CLAUDE.md).
-     Changing this string is free up to Gate 7; the package id is not. -->
+<!-- Display name settled by D-22.
+
+     "Command Post" is a generic military term in ordinary English usage. It
+     contains no Electronic Arts trademark: "Conquer" is the distinctive half
+     of EA's mark and does not appear, and "Command" alone is a common word.
+     This satisfies EA's GPL v3 section 7 additional terms.
+
+     It also contains no MOD OS or CoCreate identifier (entity wall, CLAUDE.md).
+
+     The two titles are labelled "Dawn" and "Red" - bare common words, not
+     "Tiberian Dawn" and "Red Alert", which are EA marks. -->
 <resources>
-    <string name="app_name">VC95</string>
+    <string name="app_name">Command Post</string>
+
+    <!-- D-13 two-title shell. Not yet surfaced in any UI; Red Alert is
+         disabled until after Gate 7. Defined here so the strings are settled
+         alongside the app name rather than invented later. -->
+    <string name="title_td">Dawn</string>
+    <string name="title_ra">Red</string>
 </resources>

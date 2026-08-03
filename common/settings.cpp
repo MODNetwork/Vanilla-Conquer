@@ -34,7 +34,14 @@ SettingsClass::SettingsClass()
 #else
     Video.BoxingAspectRatio = "16:10";
 #endif
+#ifdef __ANDROID__
+    // Michael's ruling after live A/B on device: grab-the-map is the natural
+    // feel, matching how every other touch surface behaves. Override with
+    // TouchPanInvert=false in CONQUER.INI, no rebuild required.
+    Video.TouchPanInvert = true;
+#else
     Video.TouchPanInvert = false;
+#endif
     Video.FrameLimit = 120;
     Video.InterpolationMode = 2;
     Video.HardwareCursor = false;

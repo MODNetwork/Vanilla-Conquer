@@ -10,6 +10,7 @@
 // GNU General Public License along with permitted additional restrictions
 // with this program. If not, see https://github.com/electronicarts/CnC_Remastered_Collection
 #include "soundio_imp.h"
+#include "debugstring.h"
 #include <al.h>
 #include <alc.h>
 #include <stdlib.h>
@@ -121,19 +122,24 @@ bool SoundImp_Init(int bits_per_sample, bool stereo, int rate, bool reverse_chan
     ALCdevice* device = alcOpenDevice(nullptr);
 
     if (device == nullptr) {
-
-        //CCDebugString("Error occured getting OpenAL device.\n");
-
+        DBG_ERROR("OpenAL: alcOpenDevice(nullptr) failed - no audio device. The game will run silent.");
         return false;
     }
 
     OpenALContext = alcCreateContext(device, nullptr);
     if (OpenALContext == nullptr || !alcMakeContextCurrent(OpenALContext)) {
-        //CCDebugString("OpenAL failed to make audio context current.\n");
+        DBG_ERROR("OpenAL: failed to make audio context current (alcGetError %d). The game will run silent.",
+                  (int)alcGetError(device));
         alcCloseDevice(device);
         OpenALContext = nullptr;
         return false;
     }
+
+    DBG_INFO("OpenAL: device open, context current. Renderer '%s', %d bit, %s, %d Hz.",
+             alcGetString(device, ALC_DEVICE_SPECIFIER),
+             bits_per_sample,
+             stereo ? "stereo" : "mono",
+             rate);
 
     return true;
 }

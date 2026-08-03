@@ -1,0 +1,63 @@
+<!--
+  Command Post launcher icon - foreground layer.
+
+  Original artwork. Contains no Electronic Arts imagery, logo, insignia or
+  derivative of any, as EA's GPL v3 Section 7 additional terms require: "You
+  may not distribute any modification of this program using any Electronic Arts
+  trademark."
+
+  Subject: a command-post map marker - a pin over a tactical grid with a radar
+  sweep. Chosen because it depicts the application's own name rather than
+  referencing any game's iconography.
+
+  Adaptive icon geometry: 108x108dp with the outer 18dp on each edge reserved
+  as bleed. All meaningful content sits inside the central 72x72dp safe zone,
+  roughly x/y 18..90, so no launcher mask shape can clip it.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Tactical grid, faint so it reads as texture rather than detail. -->
+    <path
+        android:strokeColor="#3A3A40"
+        android:strokeWidth="0.9"
+        android:pathData="M30,30 L78,30 M30,42 L78,42 M30,54 L78,54 M30,66 L78,66 M30,78 L78,78" />
+    <path
+        android:strokeColor="#3A3A40"
+        android:strokeWidth="0.9"
+        android:pathData="M30,30 L30,78 M42,30 L42,78 M54,30 L54,78 M66,30 L66,78 M78,30 L78,78" />
+
+    <!-- Grid border. -->
+    <path
+        android:strokeColor="#6B6B73"
+        android:strokeWidth="1.6"
+        android:pathData="M30,30 L78,30 L78,78 L30,78 Z" />
+
+    <!-- Corner ticks - the surveyed-position motif. -->
+    <path
+        android:strokeColor="#E8C46A"
+        android:strokeWidth="2.2"
+        android:strokeLineCap="square"
+        android:pathData="M30,37 L30,30 L37,30 M71,30 L78,30 L78,37 M78,71 L78,78 L71,78 M37,78 L30,78 L30,71" />
+
+    <!-- Radar sweep arc, centred on the marker. -->
+    <path
+        android:strokeColor="#E8C46A"
+        android:strokeWidth="1.4"
+        android:strokeAlpha="0.55"
+        android:pathData="M40,60 A14,14 0 0,1 68,60" />
+
+    <!-- The pin: teardrop body. -->
+    <path
+        android:fillColor="#E8C46A"
+        android:pathData="M54,36 C61.2,36 67,41.8 67,49 C67,58.6 54,72 54,72 C54,72 41,58.6 41,49 C41,41.8 46.8,36 54,36 Z" />
+
+    <!-- Pin aperture, punched dark so the mark still reads at 48dp. -->
+    <path
+        android:fillColor="#0B0B0C"
+        android:pathData="M54,43.5 m-5.5,0 a5.5,5.5 0 1,0 11,0 a5.5,5.5 0 1,0 -11,0" />
+
+</vector>

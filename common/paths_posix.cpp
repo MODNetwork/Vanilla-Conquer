@@ -220,6 +220,35 @@ const char* PathsClass::Data_Path()
             DBG_WARN("Android: external storage unavailable, using internal for game data");
         }
 
+        /*
+        ** D-13/D-25: one app, two titles, one external files directory - so the
+        ** data has to be separated per title or the games silently poison each
+        ** other. Tiberian Dawn and Red Alert both ship files named CONQUER.MIX,
+        ** SOUNDS.MIX, SPEECH.MIX, SCORES.MIX and TRANSIT.MIX. Sharing a flat
+        ** directory means whichever engine loads second reads the other's data,
+        ** which would not fail loudly - it would produce wrong art and wrong
+        ** audio and look like a port defect.
+        **
+        ** Suffix is the engine's own per-title identifier, set in Init():
+        **   startup.cpp:234  Paths.Init("vanillatd", ...)
+        **   startup.cpp:292  Paths.Init("vanillara", ...)
+        ** so this reuses an existing mechanism rather than inventing one. Yields
+        **   .../files/vanillatd   and   .../files/vanillara
+        **
+        ** Desktop is unaffected: there, each title already lives in its own
+        ** directory alongside its own executable.
+        */
+        if (!Suffix.empty()) {
+            DataPath = Concatenate_Paths(DataPath.c_str(), Suffix.c_str());
+
+            // The user pushes MIX files here, so it must exist even when empty -
+            // otherwise the first run of a title reports a missing data path
+            // rather than missing data, which is a misleading error.
+            if (!Create_Directory(DataPath.c_str())) {
+                DBG_WARN("Android: could not create data directory '%s'", DataPath.c_str());
+            }
+        }
+
         DBG_INFO("Android: game data path is '%s'", DataPath.c_str());
         return DataPath.c_str();
 #else

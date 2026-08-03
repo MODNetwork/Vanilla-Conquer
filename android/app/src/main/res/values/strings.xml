@@ -13,9 +13,9 @@
 <resources>
     <string name="app_name">Command Post</string>
 
-    <!-- D-13 two-title shell. Not yet surfaced in any UI; Red Alert is
-         disabled until after Gate 7. Defined here so the strings are settled
-         alongside the app name rather than invented later. -->
+    <!-- D-13/D-25 two-title shell. Surfaced by LauncherActivity. -->
     <string name="title_td">Dawn</string>
     <string name="title_ra">Red</string>
+
+    <string name="launcher_hint">SELECT A CAMPAIGN</string>
 </resources>

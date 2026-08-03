@@ -1,5 +1,6 @@
 package dev.pricharda.commandpost;
 
+import android.content.Intent;
 import android.os.Build;
 import android.view.View;
 import android.view.WindowInsets;
@@ -9,24 +10,53 @@ import android.view.WindowManager;
 import org.libsdl.app.SDLActivity;
 
 /**
- * Android entry activity.
+ * Android entry activity - hosts whichever engine the launcher selected.
  *
- * SDLActivity's default getLibraries() returns {"SDL2", "main"}. The engine
- * builds as libvanillatd.so (tiberiandawn/CMakeLists.txt sets OUTPUT_NAME
- * vanillatd), so the load list is overridden here rather than renaming the
- * engine target - the target name is upstream's and stays untouched.
+ * SDLActivity's default getLibraries() returns {"SDL2", "main"}. The engines
+ * build as libvanillatd.so and libvanillara.so (each CMakeLists sets
+ * OUTPUT_NAME), so the load list is overridden here rather than renaming the
+ * engine targets - those names are upstream's and stay untouched.
  *
- * D-13: the app is designed to host two titles. When Red Alert is enabled
- * post-Gate-7 this is the single place that selects which engine library
- * loads; nothing else in the platform layer assumes one game.
+ * D-13/D-25: this is the single place that selects which engine library loads.
+ * Nothing else in the platform layer assumes one game: the touch layer, audio,
+ * paths, aspect handling and soft keyboard all live in common/ and are shared.
+ *
+ * IMPORTANT - why the title cannot be changed after launch. SDL loads the
+ * engine with System.loadLibrary() and the engine then runs its own main loop
+ * for the life of the process. A native library cannot be unloaded and
+ * replaced, so switching titles requires a fresh process. LauncherActivity
+ * therefore starts this activity with the chosen title, and returning to the
+ * launcher kills the process rather than trying to swap engines in place.
  */
 public class CommandPostActivity extends SDLActivity {
 
+    /** Intent extra naming the engine library to load, without the lib prefix. */
+    public static final String EXTRA_ENGINE = "dev.pricharda.commandpost.ENGINE";
+
+    /** Used when the activity is started directly, e.g. by adb am start. */
+    private static final String DEFAULT_ENGINE = "vanillatd";
+
     @Override
     protected String[] getLibraries() {
+        // getLibraries() is called by SDLActivity during onCreate, before
+        // super.onCreate() completes, so getIntent() is already available.
+        String engine = DEFAULT_ENGINE;
+
+        final Intent intent = getIntent();
+        if (intent != null) {
+            final String requested = intent.getStringExtra(EXTRA_ENGINE);
+
+            // Whitelist rather than trust the extra. An unrecognised value would
+            // otherwise reach System.loadLibrary() and crash with a confusing
+            // UnsatisfiedLinkError instead of a clear fallback.
+            if ("vanillatd".equals(requested) || "vanillara".equals(requested)) {
+                engine = requested;
+            }
+        }
+
         return new String[] {
             "SDL2",
-            "vanillatd"
+            engine
         };
     }
 

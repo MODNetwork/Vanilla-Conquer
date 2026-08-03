@@ -697,3 +697,75 @@ not.
 (1) accept the menu item, which is what is built; (2) bind the Android **back** gesture to exit,
 which is idiomatic and needs no game state; or (3) add main-menu detection, which breaks the
 platform-layer boundary and is not recommended.
+
+---
+
+## D-28 · 2026-08-03 · The three expansions are data, not titles — the picker stays at two entries
+
+**Michael's question:** *"confirm that counterstrike and aftermath are separate titles from RA - if
+so they do not belong with RED, they would be standalones ... COps is also standalone."*
+
+**Confirmed from the engine source: they are not separate titles.** All three are expansion data
+detected at runtime by their parent engine and surfaced through that engine's own menus. There is
+no separate executable, no separate entry point, and nothing for the picker to launch.
+
+**Counterstrike and The Aftermath — `redalert/conquer.cpp:4640` and `:4664`:**
+
+```cpp
+bool Is_Counterstrike_Installed(void) {
+    CCFileClass file("EXPAND.MIX");
+    bInstalled = file.Is_Available();
+    return bInstalled && Options.CounterstrikeEnabled;
+}
+
+bool Is_Aftermath_Installed(void) {
+    CCFileClass file("EXPAND2.MIX");
+    ...
+    return bInstalled && Options.AftermathEnabled;
+}
+```
+
+These are file-presence checks *inside the Red Alert engine*, gated further by an in-game option
+the player controls. Red Alert asks itself whether the expansion data exists.
+
+**Covert Operations — `tiberiandawn/init.cpp:707` and `:883`:**
+
+```
+SEL_NEW_SCENARIO,   // Expansion scenario to play.
+...
+if (Expansion_Dialog()) {
+```
+
+Covert Operations is a **menu item inside Tiberian Dawn**. `Expansion_Dialog()`
+(`tiberiandawn/expand.cpp:123`) scans for scenario `.INI` files, which live inside `SC-000.MIX` and
+`SC-001.MIX`.
+
+**Why making them picker entries would be actively wrong**, not merely redundant: each entry would
+launch the identical engine binary against the identical data directory and produce an identical
+game. It would also fragment the data — Red Alert without `EXPAND.MIX` in its own directory *loses*
+the Counterstrike content, because the detection is a file check in that directory. Splitting them
+out would remove content rather than add a title.
+
+**The picker therefore stays at two entries: Dawn and Red.** The expansions appear where the
+original games put them — inside each game's menus.
+
+**Delivered this session.**
+
+| Expansion | Parent | File(s) | Location |
+|---|---|---|---|
+| Counterstrike | Red Alert | `EXPAND.MIX` (458,242 bytes) | `files/vanillara/` |
+| The Aftermath | Red Alert | `EXPAND2.MIX` (469,922 bytes) | `files/vanillara/` |
+| Covert Operations | Tiberian Dawn | `SC-000.MIX` (185,937), `SC-001.MIX` (490,318) | `files/vanillatd/` |
+
+Source: Michael's licensed Remastered Collection — `RED_ALERT/AFTERMATH/` and
+`TIBERIAN_DAWN/CD3/`.
+
+**Known limitation, stated rather than hidden.** Covert Operations shipped its own `MOVIES.MIX`
+(194 MB) and `SCORES.MIX` (75 MB) on CD3, containing that expansion's cutscenes and music. Those
+were **not** pushed: they share filenames with Tiberian Dawn's existing files, and overwriting
+would discard the GDI and NOD movies. The Covert Operations *missions* are playable; its cutscenes
+and its extra music tracks are not present. Resolving that properly needs per-campaign data
+handling, which is scope nobody has asked for.
+
+**All three titles are now content-complete** for what the engines can reach from a single data
+directory each.

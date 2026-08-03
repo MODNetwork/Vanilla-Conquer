@@ -48,11 +48,29 @@ android {
     applicationVariants.all { variant ->
         tasks["merge${variant.name.capitalize()}Assets"]
             .dependsOn("externalNativeBuild${variant.name.capitalize()}")
+
+        // Licence text must ship INSIDE the APK, not merely sit in the repo.
+        // EA's GPL v3 section 7 term: "Any propagation or conveyance of this
+        // program must include this copyright notice and these terms." An APK
+        // handed to anyone without these is non-compliant.
+        //
+        // Copied at build time rather than checked into assets/ so the shipped
+        // text can never drift from the authoritative files at the repo root.
+        tasks["merge${variant.name.capitalize()}Assets"]
+            .dependsOn("copyLicenceAssets")
     }
 
     lint {
         abortOnError false
     }
+}
+
+tasks.register('copyLicenceAssets', Copy) {
+    from("${rootDir}/..") {
+        include 'License.txt'
+        include 'THIRD-PARTY-LICENSES.txt'
+    }
+    into "${projectDir}/src/main/assets"
 }
 
 dependencies {

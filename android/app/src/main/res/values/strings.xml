@@ -13,9 +13,32 @@
 <resources>
     <string name="app_name">Command Post</string>
 
-    <!-- D-13/D-25 two-title shell. Surfaced by LauncherActivity. -->
+    <!-- D-13/D-25 two-title shell. Surfaced by LauncherActivity.
+         D-28: the expansions are NOT titles - Counterstrike and The Aftermath
+         are detected by the Red Alert engine, Covert Operations by the Tiberian
+         Dawn engine, and each appears inside its own game's menus. -->
     <string name="title_td">Dawn</string>
     <string name="title_ra">Red</string>
 
     <string name="launcher_hint">SELECT A CAMPAIGN</string>
+    <string name="launcher_credits">CREDITS &amp; LICENCES</string>
+
+    <!-- D-29 credits screen. These strings carry real licence obligations and
+         should not be reworded casually. -->
+
+    <!-- GPL v3 s5(a) and EA's own section 7 term both require this. -->
+    <string name="credits_modified_notice">This is a MODIFIED version of the program. It is not the original program, and it is not endorsed by, affiliated with, or associated with Electronic Arts Inc.</string>
+
+    <string name="credits_games">Command &amp; Conquer and Command &amp; Conquer Red Alert were created by Westwood Studios.\n\nCopyright 2020 Electronic Arts Inc.\n\nElectronic Arts released the engine source code under the GNU General Public License v3 with additional terms. On 27 February 2025 EA released the fully recovered original source for both games under the same licence.</string>
+
+    <string name="credits_port">Android port by Michael Pricharda.\n\nModifications are confined to the platform layer: windowing and display, touch input, audio backend, and filesystem paths. No game logic, balance, mission data or rules were altered.</string>
+
+    <string name="credits_upstream">Vanilla Conquer — the portable engine this port is built on, by The Assembly Armada and contributors.\n\nSDL2 by Sam Lantinga and the SDL contributors, under the zlib licence. Used unmodified.\n\nOpenAL Soft, under the GNU Library General Public License v2. Used unmodified and linked dynamically, so it can be replaced.\n\nAn earlier Android port of Vanilla Conquer by the GitHub user sandstranger was read as a reference for how the platform layer could be structured. No code was copied from it, but the debt is real and is acknowledged here.</string>
+
+    <string name="credits_assets">This application contains NO game data. Artwork, audio, video and mission files remain the property of Electronic Arts Inc. and are not distributed with it.\n\nYou must supply your own data files from a copy of the games you obtain yourself. This is permanent and deliberate, not a limitation that will later be removed.</string>
+
+    <string name="credits_trademarks">Command &amp; Conquer, Tiberian Dawn, Red Alert and Electronic Arts are trademarks of Electronic Arts Inc.\n\nThose marks are used here only to identify the game data this engine reads. They are not used as the identity of this application, which is named Command Post.</string>
+
+    <!-- GPL v3 s6: recipients must be told where to get corresponding source. -->
+    <string name="credits_source">This program is free software under the GNU General Public License v3, with additional terms imposed by Electronic Arts Inc. under section 7 of that licence. The full text of both follows below.\n\nComplete corresponding source for this exact build, including every platform-layer modification and the scripts used to build it, is available from the project repository.</string>
 </resources>

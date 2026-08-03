@@ -93,6 +93,19 @@
             </intent-filter>
         </activity>
 
+        <!-- D-29: credits, attribution and the full licence text. Shares the
+             picker's process - it loads no native library and must survive the
+             game process being killed. Not exported: nothing outside the app
+             has any reason to launch it. -->
+        <activity android:name="dev.pricharda.commandpost.CreditsActivity"
+            android:label="@string/launcher_credits"
+            android:process=":launcher"
+            android:screenOrientation="sensorLandscape"
+            android:resizeableActivity="true"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
+            android:exported="false"
+            />
+
         <!-- Fully qualified: SDLActivity lives in org.libsdl.app, not in our
              namespace (dev.pricharda.commandpost). A relative name here resolves
              against the namespace and throws ClassNotFoundException at launch.

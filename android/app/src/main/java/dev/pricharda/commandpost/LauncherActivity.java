@@ -73,6 +73,26 @@ public class LauncherActivity extends Activity {
         root.addView(makeTitleButton(R.string.title_td, "vanillatd"));
         root.addView(makeTitleButton(R.string.title_ra, "vanillara"));
 
+        // D-29. Not optional garnish: the credits screen is where the GPL v3
+        // modification notice, the corresponding-source statement and the
+        // third-party notices are actually presented to a user. It has to be
+        // reachable from the app's first screen.
+        final TextView credits = new TextView(this);
+        credits.setText(R.string.launcher_credits);
+        credits.setTextColor(COLOR_DIM);
+        credits.setTextSize(11);
+        credits.setTypeface(Typeface.MONOSPACE);
+        credits.setLetterSpacing(0.10f);
+        credits.setGravity(Gravity.CENTER);
+        credits.setPadding(0, 34, 0, 0);
+        credits.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(LauncherActivity.this, CreditsActivity.class));
+            }
+        });
+        root.addView(credits);
+
         setContentView(root);
 
         // MUST come after setContentView(). getWindow().getInsetsController()

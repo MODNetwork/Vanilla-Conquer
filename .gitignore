@@ -45,3 +45,9 @@ android/local.properties
 # GATE EVIDENCE (temp files, not repo content)
 gate*_evidence.txt
 build-win/  
+
+# D-29: licence text is copied into assets at build time by copyLicenceAssets.
+# The authoritative copies live at the repo root; these are generated.
+android/app/src/main/assets/License.txt
+android/app/src/main/assets/THIRD-PARTY-LICENSES.txt
+

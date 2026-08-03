@@ -115,6 +115,7 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
         TouchOriginY = win_y;
         TouchStartMs = SDL_GetTicks();
         TouchMode = TOUCH_PENDING;
+        PanEngaged = false;
 
         // Cursor follows immediately so the player sees where they are aiming,
         // but no click is dispatched until the gesture is classified.
@@ -206,6 +207,11 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
             if (moved_sq > TOUCH_PAN_DEADZONE_PX * TOUCH_PAN_DEADZONE_PX) {
                 AnalogScrollActive = true;
 
+                // Latched, not cleared when the finger returns inside the
+                // deadzone: once this hold has scrolled the map it is a pan for
+                // the rest of its life, and lifting it must not fire a cancel.
+                PanEngaged = true;
+
                 /*
                 ** TouchPanInvert flips to a grab-the-map feel: sliding right
                 ** drags the map right, so the view travels left. Purely
@@ -257,7 +263,29 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
         case TOUCH_PAN:
             AnalogScrollActive = false;
             ScrollDirection = SDIR_NONE;
-            DBG_INFO("TOUCH: PAN end");
+
+            if (PanEngaged) {
+                DBG_INFO("TOUCH: PAN end");
+            } else {
+                /*
+                ** Held past the pan threshold but never slid: a long press.
+                ** Emits a right-click, which DisplayClass::Mouse_Right_Press
+                ** turns into the appropriate cancel - building placement,
+                ** repair mode, sell mode, targeting mode, or deselect - by its
+                ** own priority chain. The platform layer picks none of that; it
+                ** only delivers the button the engine already knows how to
+                ** interpret.
+                **
+                ** Dispatched at the ORIGIN rather than the lift point. They are
+                ** within the deadzone of each other by definition, and the
+                ** origin is where the player actually aimed.
+                */
+                Set_Video_Mouse_Absolute(TouchOriginX, TouchOriginY);
+                Get_Video_Mouse_Game(gx, gy);
+                Put_Mouse_Message(VK_RBUTTON, gx, gy, false);
+                Put_Mouse_Message(VK_RBUTTON, gx, gy, true);
+                DBG_INFO("TOUCH: LONG-PRESS -> RIGHT-CLICK at %d,%d", gx, gy);
+            }
             break;
 
         default:

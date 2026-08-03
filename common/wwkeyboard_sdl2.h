@@ -102,6 +102,31 @@ private:
     int TouchFingerCount = 0;  // fingers currently down, clamped at zero
     bool TwoFingerFired = false;
 
+    /*
+    ** Long-press -> right-click.
+    **
+    ** DisplayClass::Mouse_Right_Press (display.cpp) is a five-way cancel chain,
+    ** and every branch of it was unreachable on touch until this existed:
+    **   PendingObjectPtr -> cancel building placement
+    **   IsRepairMode     -> exit repair mode
+    **   IsSellMode       -> exit sell mode
+    **   IsTargettingMode -> exit ion cannon / airstrike targeting
+    **   otherwise        -> Unselect_All()
+    **
+    ** Tapping empty ground cannot serve as "deselect": with units selected that
+    ** is the move order, and every tile of the tactical map is a valid
+    ** destination, so there is no inert area to tap.
+    **
+    ** Hold-still-then-lift was already a complete no-op - the gesture arms
+    ** TOUCH_PAN, but with no slide the scroll never engages and FINGERUP emits
+    ** nothing. So it is free, it collides with nothing, and long-press as a
+    ** secondary action is the standard Android idiom.
+    **
+    ** PanEngaged distinguishes "held and panned" from "held and did not pan".
+    ** Without it, ending a genuine map scroll would fire a spurious cancel.
+    */
+    bool PanEngaged = false;
+
     uint32_t PanFrameCount = 0;
 
     void Handle_Finger_Event(const SDL_TouchFingerEvent& finger, uint32_t type);

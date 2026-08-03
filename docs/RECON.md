@@ -865,3 +865,78 @@ and reporting it as "clean" inverts its meaning.
 Gate 6 part 2 PASS rests on **his direct observation**, not on captured logs. That is a legitimate
 basis — he holds gate authority — but it is recorded honestly here rather than dressed up with
 corroboration the tooling did not actually provide.
+
+---
+
+### F-12 · The launcher crashed on every launch: a copied method without its precondition
+
+**Symptom.** Michael, verbatim: *"the launcher does not work, cannot open the app as is, even after
+a force close/restart."* The app was unopenable — not degraded, dead.
+
+**Root cause, exact:**
+
+```
+FATAL EXCEPTION: main
+java.lang.RuntimeException: Unable to start activity
+  ComponentInfo{dev.pricharda.commandpost/dev.pricharda.commandpost.LauncherActivity}
+Caused by: java.lang.NullPointerException: Attempt to invoke virtual method
+  'android.view.WindowInsetsController
+   com.android.internal.policy.DecorView.getWindowInsetsController()'
+  on a null object reference
+    at LauncherActivity.applyImmersiveMode(LauncherActivity.java:129)
+    at LauncherActivity.onCreate(LauncherActivity.java:48)
+```
+
+`applyImmersiveMode()` was called **before** `setContentView()`.
+`getWindow().getInsetsController()` resolves through the DecorView, and the DecorView does not
+exist until a content view is set — so the call dereferenced null and threw.
+
+**Why it was introduced.** The method was lifted verbatim from `CommandPostActivity`, where it is
+correct. In that class it is only ever invoked from `onResume()` and `onWindowFocusChanged()` —
+both of which run *after* the view hierarchy exists. **The method was copied; its precondition was
+not.** It carried an unstated dependency on call-site timing, and moving it to a new call site
+broke it silently at compile time and loudly at runtime.
+
+**Fix.** Move the call to after `setContentView()`, and add an `onWindowFocusChanged()` override so
+the launcher re-applies immersive mode on focus gain exactly as the game activity does. One
+variable changed, at the line the stack trace named. No stacking, no second guess.
+
+**Prevention rule.** When lifting a method between classes, carry its preconditions with it. A
+method that works only at certain points in a lifecycle should say so at its definition, not rely
+on every future caller inferring it. The comment at the new call site now states the constraint
+explicitly so the next move of this code cannot repeat the fault.
+
+**Cost:** one build cycle. Caught by reading the `Caused by` line rather than guessing — the top of
+the stack trace said only "Unable to start activity", which names the symptom and not the cause.
+
+---
+
+### F-13 · "The app won't open" was, for the second time, a sleeping phone
+
+**Symptom.** After F-12 was fixed and the crash was gone, the launcher still could not be observed:
+`mCurrentFocus` stayed on `NotificationShade` across a force-stop, three relaunches,
+`input keyevent BACK`, a swipe, and `cmd statusbar collapse`.
+
+**Root cause.** The device was asleep and locked:
+
+```
+mWakefulness=Dozing
+isKeyguardShowing=true
+mDreamingLockscreen=true
+```
+
+`NotificationShade` **is** the lock screen. No launch was ever going to be visible, and no amount of
+input injection would change that from adb.
+
+**This is the second occurrence in this project.** The earlier instance was recorded as the "video
+hang that wasn't" — same `mWakefulness=Dozing`, same wasted diagnosis.
+
+**Prevention rule — now standing.** Before investigating *any* "the app doesn't appear" report,
+check `dumpsys power | grep mWakefulness` **first**. It is one command. A sleeping phone and a
+broken app are indistinguishable from the log alone, and they call for opposite responses:
+one is a defect, the other is Michael tapping his screen.
+
+**Note on the sequencing.** F-12 was real and was fixed on evidence before F-13 was discovered.
+The absence of `FATAL` after the fix is genuine verification that the crash is gone. What remains
+unverified is whether the launcher *renders correctly* — that needs an awake device and a human
+looking at it.

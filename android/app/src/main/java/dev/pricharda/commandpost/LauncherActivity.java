@@ -45,7 +45,6 @@ public class LauncherActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        applyImmersiveMode();
 
         final LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -75,6 +74,26 @@ public class LauncherActivity extends Activity {
         root.addView(makeTitleButton(R.string.title_ra, "vanillara"));
 
         setContentView(root);
+
+        // MUST come after setContentView(). getWindow().getInsetsController()
+        // resolves through the DecorView, which does not exist until a content
+        // view is set - calling it before returns a null DecorView and throws
+        // NullPointerException. F-12: this crashed the app on launch, because
+        // the method was lifted from CommandPostActivity where it is only ever
+        // called from onResume/onWindowFocusChanged, i.e. always after the view
+        // hierarchy exists. The method was copied; its precondition was not.
+        applyImmersiveMode();
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+
+        // Re-apply on focus gain, same as the game activity: the bars return
+        // after a swipe, a notification, or the recents switcher.
+        if (hasFocus) {
+            applyImmersiveMode();
+        }
     }
 
     private Button makeTitleButton(int labelRes, final String engine) {

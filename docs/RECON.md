@@ -621,3 +621,86 @@ These now attach to **Gate 6** (lifecycle: sleep, resume, save, force-kill, relo
 and **Gate 7** (performance pass: sustained 60fps or a documented floor, battery and thermal
 sanity). That is where they always belonged. They are recorded here so that nobody later mistakes
 "Gate 5 passed" for "the port was soak-tested."
+
+---
+
+## GATE 6 · PART 1 OF 2 · AUDIO · PASS · 2026-08-02
+
+**Michael's gate report, verbatim:** *"pass all three"* — against the three separately-reported
+criteria below. A fourth item was raised at the same time: *"but a bug might be detected."* That
+is open and tracked below; it does not qualify the audio PASS.
+
+| Criterion | Source MIX | Verdict |
+|---|---|---|
+| Menu and interface sounds | `SOUNDS.MIX` | PASS |
+| EVA speech | `SPEECH.MIX` | PASS |
+| Score music under a mission | `SCORES.MIX` | PASS |
+
+**Device evidence captured before Michael listened** (so the PASS rests on more than one report):
+
+```
+VCTD  : OpenAL: device open, context current. Renderer 'OpenAL Soft', 16 bit, mono, 22050 Hz.
+ALSOFT: Post-start: Stereo, Int16, 48000hz, 960 / 2880 buffer
+ALSOFT: Max sources: 256 (255 + 1), effect slots: 64, sends: 2
+ALSOFT: Created context 0xb400007b89ada570
+ALSOFT: Increasing allocated voice properties to 32
+```
+
+From Android's own `dumpsys audio`, which is independent of anything the engine reports:
+
+```
+new player piid:32519 package:dev.pricharda.vc95
+  type:OpenSL ES AudioPlayer (Buffer Queue)  usage=USAGE_MEDIA
+player piid:32519 event:started
+player piid:32519 event:muted updated source:none
+STREAM_MUSIC Muted: false
+```
+
+The `voice properties` line arriving five seconds after launch is the useful one: it means the
+engine was consuming voices, not merely that a context existed.
+
+**Benign warnings, recorded so they are not later mistaken for defects:**
+`pthread_setschedparam failed: Operation not permitted` (Android denies realtime thread priority
+to ordinary apps) and `D-Bus not supported` (no D-Bus on Android). Neither affects playback.
+
+**Engine requests mono 22050 Hz; ALSOFT renders stereo 48000 Hz.** That is the engine's native
+1995 format being upsampled by openal-soft, not a downgrade introduced by the port. Desktop does
+the same thing.
+
+**Assets:** `SCORES.MIX` pushed and verified on device at 39,114,329 bytes. `MOVIES.MIX` (428 MB)
+remains unpushed, so **cutscene audio via `vqaaudio_openal.cpp` is a separate and still-untested
+path.** Nobody should read this PASS as covering it.
+
+---
+
+### F-9 · "No mDNS advertisement" was wrongly treated as "device offline"
+
+**Symptom.** `adb mdns services` returned an empty list and `adb devices` showed nothing. The
+agent reported the phone unreachable and handed the problem back to Michael.
+
+**Root cause.** Two different conditions were collapsed into one. The device answered ping at
+10.0.0.214 in 8 ms — awake, on Wi-Fi, reachable. Only the wireless-debugging *port* was unknown,
+because Android rotates it and mDNS was not advertising it on this network.
+
+**Fix.** Scanned TCP 30000–50000 against the known-good IP; found the listener on **41105**;
+`adb connect 10.0.0.214:41105` succeeded immediately. No action was required from Michael at all.
+
+**Prevention rule.** Before reporting a device unreachable, establish which layer actually failed:
+ping the last known IP first. Reachable-but-undiscovered and genuinely-offline call for different
+responses, and only the second one is Michael's to fix. This is the third time in this project
+that connection loss has been misdiagnosed (see also the earlier pinned-port error); the pattern
+is assuming the discovery mechanism's silence is the device's silence.
+
+---
+
+### OPEN · Suspected defect raised alongside the Gate 6 audio PASS
+
+Michael reported a possible bug at the same moment he passed audio, and asked for the desktop
+build to be launched as a reference so he could establish whether the behaviour is a port defect
+or original 1995 engine behaviour. Desktop `vanillatd.exe` was started from `C:\DEV\_cnc-run`
+(PID 27032) for that comparison.
+
+**The symptom has not yet been described, so nothing has been diagnosed and nothing changed.**
+Recorded here as an open item rather than acted on, per the standing rule from D-18: a symptom
+reported once and not reproduced by measurement is a lead, not a defect, and must never be fixed
+against speculatively.

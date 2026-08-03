@@ -940,3 +940,81 @@ one is a defect, the other is Michael tapping his screen.
 The absence of `FATAL` after the fix is genuine verification that the crash is gone. What remains
 unverified is whether the launcher *renders correctly* — that needs an awake device and a human
 looking at it.
+
+---
+
+## GATE 7 · PROGRESS · 2026-08-03
+
+**Michael's reports this session, verbatim:** picker and exit-to-picker — *"PASS and PASS"*;
+long-press right-click — *"PASS"*; credits screen including the licence bodies — *"q1 - PASS"*.
+Back-gesture binding declined: *"q3 no - it is fine as is."* Generals Zero Hour: *"generals kill
+for now"*, closing D-24. Covert Operations cutscene and music data accepted into scope.
+
+| Gate 7 item | State |
+|---|---|
+| `THIRD-PARTY-LICENSES.txt`, both licences verified from source | **done** |
+| Licence text shipped **inside** the APK | **done** — was a real compliance gap, see below |
+| In-app credits screen | **done**, PASS |
+| Launcher icon, original artwork | **done**, PASS |
+| Title picker | **done**, PASS |
+| Exit back to picker | **done**, PASS |
+| All titles present (Dawn, Red, + 3 expansions) | **done** |
+| Performance pass | **harness built, nothing measured under load** |
+| Signed release APK | not started |
+| Push to GitHub | not started — 48 commits ahead of `origin/vanilla`, still zero pushed |
+
+**The compliance gap, recorded because it would have shipped.** Until D-29, neither `License.txt`
+nor `THIRD-PARTY-LICENSES.txt` was inside the APK — both existed only in the repository. EA's §7
+term states: *"Any propagation or conveyance of this program must include this copyright notice and
+these terms."* Any build conveyed to anyone would have been non-compliant. Now copied into
+`assets/` by a Gradle task at build time, verified byte-exact (37,528 and 9,441 bytes), and
+displayed in the credits screen.
+
+---
+
+### Performance harness — built, validated, not yet used in anger
+
+`C:\DEV\_cnc-scripts\perf.ps1`. **Not committed to this repository** — it lives with the other
+operational scripts outside the tree, which is the established pattern here. Recorded in this
+document so the gate evidence is not orphaned from the gate.
+
+Every probe was validated against a known-live signal **before** the harness was written. That is
+F-11's prevention rule applied rather than merely quoted.
+
+| Probe | Measures |
+|---|---|
+| `dumpsys gfxinfo` | frames, jank %, 50/90/99th percentile frame times |
+| `dumpsys display` | refresh rate — measured, not assumed |
+| `dumpsys thermalservice` | `VIRTUAL-SKIN`, `G3D`, `BIG`, `LITTLE` |
+| `dumpsys battery` | level, battery temperature |
+| `top -b -p <pid>` | process CPU and RSS |
+
+**The frame budget was derived from the device, not invented.** The inner display reports
+`renderFrameRate 120.00001`, and `common/settings.cpp` sets `Video.FrameLimit = 120` with
+`SDL_RENDERER_PRESENT_VSYNC` in our video path. **Budget is 8.3 ms**, not a guessed 16.7 ms.
+
+**Two defects found in the harness itself while building it:**
+
+1. `Take-Sample` used `Write-Output` for its error message. A PowerShell function returns
+   everything written to the output stream, so the error string *became the return value* and the
+   null check never fired. Now `Write-Host`, with the reason stated inline so it is not
+   reintroduced.
+2. The skin-temperature regex anchored on `mType=-1`, but `mType` is not fixed per sensor. Now
+   anchored on `mName` only, with sensor names read off the device rather than assumed. `G3D` added
+   since this is a game.
+
+**Self-test returned real values on every field:** CPU 64.2%, RSS 240M, battery 17%, skin 37.1 °C,
+GPU 57 °C, BIG 62 °C, LITTLE 60 °C.
+
+**NOTHING HAS BEEN MEASURED UNDER LOAD.** Two blockers, and one of them is not code:
+
+- **Battery is at 17%.** A drain or thermal measurement at that level is not trustworthy —
+  low-battery power and thermal throttling would depress the numbers, making a bad result look
+  acceptable or an acceptable result look bad. The device needs charging before a real run.
+- **Load requires a human playing.** Heavy combat with many units is the case that matters and no
+  adb command produces it.
+
+**One observation carried forward, deliberately not acted on.** CPU sat at 64–117% while the game
+was on its main menu doing nothing. `Video.FrameLimit = 120` means the engine renders 120 fps at a
+static menu, which would be wasteful on battery. That is a **hypothesis from two idle samples, not
+a finding**, and it will be measured before anything is changed.

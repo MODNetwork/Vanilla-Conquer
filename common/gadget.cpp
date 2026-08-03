@@ -63,6 +63,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __ANDROID__
+#include <SDL.h>
+#endif
+
 extern WWKeyboardClass* Keyboard;
 
 /*
@@ -760,6 +764,27 @@ void GadgetClass::Set_Focus(void)
     }
     Flags |= KEYBOARD;
     Focused = this;
+
+#ifdef __ANDROID__
+    /*
+    ** Raise the Android soft keyboard.
+    **
+    ** SDL only shows it when text input mode is explicitly started; without
+    ** this the engine sits waiting for characters that can never arrive, and
+    ** save-game naming - which Tiberian Dawn requires before it will write a
+    ** save - is impossible on a touch device.
+    **
+    ** This is the correct seam rather than a convenient one: setting KEYBOARD
+    ** in Flags is precisely the engine declaring "route typed input here", so
+    ** it is exactly when the platform must offer a way to type. Because it
+    ** lives on GadgetClass rather than EditClass, Red Alert inherits it
+    ** unchanged when that title is enabled (D-13).
+    **
+    ** Non-Android platforms are untouched; SDL_StartTextInput is a no-op
+    ** where a physical keyboard is always present.
+    */
+    SDL_StartTextInput();
+#endif
 }
 
 /***********************************************************************************************
@@ -783,6 +808,14 @@ void GadgetClass::Clear_Focus(void)
     if (Focused == this) {
         Flags &= ~KEYBOARD;
         Focused = 0;
+
+#ifdef __ANDROID__
+        // Dismiss the soft keyboard, but only for the gadget that actually
+        // held focus. Set_Focus() clears the previous holder before claiming
+        // focus itself, so an unconditional stop here would hide the keyboard
+        // in the very moment another field is asking for it.
+        SDL_StopTextInput();
+#endif
     }
 }
 

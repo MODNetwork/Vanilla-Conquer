@@ -82,6 +82,25 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
     const int win_y = (int)(finger.y * (float)out_h);
 
     if (type == SDL_FINGERDOWN) {
+        ++TouchFingerCount;
+
+        /*
+        ** A second finger landing while the first is still unclassified is a
+        ** two-finger tap: the gesture bound to ESC. It is claimed here, before
+        ** the first finger has resolved into a tap, so no stray click is ever
+        ** dispatched underneath it.
+        **
+        ** Deliberately NOT claimed once the first finger has become a DRAG or
+        ** a PAN - interrupting a marquee selection or a map scroll because a
+        ** palm brushed the screen would be worse than doing nothing.
+        */
+        if (TouchMode == TOUCH_PENDING && TouchFingerCount == 2) {
+            TouchMode = TOUCH_TWOFINGER;
+            TwoFingerFired = false;
+            DBG_INFO("TOUCH: -> TWOFINGER");
+            return;
+        }
+
         /*
         ** Only the first finger drives the cursor. Ignoring later fingers
         ** stops a stray palm or second thumb from yanking the cursor away
@@ -103,7 +122,45 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
         return;
     }
 
+    /*
+    ** Two-finger handling sits BEFORE the single-finger id filter on purpose:
+    ** the second finger's id is deliberately not TouchFinger, so the filter
+    ** below would discard its lift and the gesture would never complete.
+    */
+    if (TouchMode == TOUCH_TWOFINGER) {
+        if (type == SDL_FINGERUP) {
+            if (TouchFingerCount > 0) {
+                --TouchFingerCount;
+            }
+
+            // Fire once, on the first lift. Which finger leaves first is not
+            // something the player controls or thinks about.
+            if (!TwoFingerFired) {
+                Put_Key_Message(SDL_SCANCODE_ESCAPE, false);
+                Put_Key_Message(SDL_SCANCODE_ESCAPE, true);
+                TwoFingerFired = true;
+                DBG_INFO("TOUCH: TWOFINGER -> ESC");
+            }
+
+            // Stay in this state until the screen is actually clear, so the
+            // trailing finger cannot be misread as the start of a new gesture.
+            if (TouchFingerCount <= 0) {
+                TouchFingerCount = 0;
+                TouchMode = TOUCH_IDLE;
+                TouchFinger = 0;
+            }
+        }
+
+        // Motion during a two-finger tap moves nothing and scrolls nothing.
+        return;
+    }
+
     if (finger.fingerId != TouchFinger) {
+        // Keep the count honest even for fingers this layer ignores, or the
+        // next two-finger tap would be counted against a stale total.
+        if (type == SDL_FINGERUP && TouchFingerCount > 0) {
+            --TouchFingerCount;
+        }
         return;
     }
 
@@ -207,7 +264,12 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
             break;
         }
 
+        if (TouchFingerCount > 0) {
+            --TouchFingerCount;
+        }
+
         TouchMode = TOUCH_IDLE;
+        TouchFinger = 0;
     }
 }
 #endif

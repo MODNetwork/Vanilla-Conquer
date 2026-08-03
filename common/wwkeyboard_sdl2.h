@@ -62,10 +62,11 @@ private:
     */
     enum TouchState
     {
-        TOUCH_IDLE = 0, // no finger down
-        TOUCH_PENDING,  // down, not yet classified
-        TOUCH_DRAG,     // moved early -> click-drag (select, marquee, orders)
-        TOUCH_PAN       // held still, then moved -> map scroll
+        TOUCH_IDLE = 0,  // no finger down
+        TOUCH_PENDING,   // down, not yet classified
+        TOUCH_DRAG,      // moved early -> click-drag (select, marquee, orders)
+        TOUCH_PAN,       // held still, then moved -> map scroll
+        TOUCH_TWOFINGER  // second finger landed -> ESC on lift
     };
 
     // Movement in window pixels below which a finger counts as "still".
@@ -80,6 +81,26 @@ private:
     int TouchOriginX = 0; // window px, where the finger first landed
     int TouchOriginY = 0;
     uint32_t TouchStartMs = 0;
+
+    /*
+    ** Two-finger tap -> ESC.
+    **
+    ** ESC is not a movie-skip key, it is three things at once (verified in
+    ** the engine source): it opens the in-game options dialog
+    ** (conquer.cpp:709, Options.KeyOption1), it breaks out of a playing movie
+    ** (conquer.cpp:2949), and it is Cancel in roughly thirty dialogs. One
+    ** gesture therefore covers all three.
+    **
+    ** Two fingers rather than a double-tap: the engine deliberately degrades
+    ** double-clicks into two ordinary single clicks
+    ** ("Fake this into being just a rapid click of the left button twice",
+    ** wwkeyboard.cpp:576), so Tiberian Dawn has no double-click semantics to
+    ** collide with - but swallowing a double-tap WOULD break rapid tapping on
+    ** the sidebar to queue builds. A two-finger tap has no conflict at all and
+    ** needs no per-region exceptions.
+    */
+    int TouchFingerCount = 0;  // fingers currently down, clamped at zero
+    bool TwoFingerFired = false;
 
     uint32_t PanFrameCount = 0;
 

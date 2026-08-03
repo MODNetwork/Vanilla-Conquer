@@ -539,3 +539,95 @@ rather than overwritten, for the same reason.
 
 **Now permanent.** A Play Store package id can never be changed after first publication. If this
 ships, `dev.pricharda.commandpost` is forever.
+
+---
+
+## D-23 · 2026-08-03 · Red Alert enabled before any harder title is attempted
+
+**Decision.** `BUILD_VANILLARA=ON` for Android. Red Alert now cross-compiles and ships in the APK
+alongside Tiberian Dawn.
+
+**Why this and not Generals.** Michael identified a real, working native Android port of Generals
+Zero Hour (`tarek369/GeneralsZH-Android`, GPL v3) and proposed adopting it. It is genuine, but it
+is a second project rather than an integration — see D-24. The multi-title shell had never hosted
+more than one title, and Red Alert is the cheapest possible test of it: same engine family, so the
+entire platform layer applies unchanged. **Law 3.5 — prove the pipe with a trivial artifact before
+building the real one.** If the shell cannot host Dawn plus Red, it certainly cannot host a
+DXVK/Vulkan/SDL3 stack, and that is far cheaper to learn now than after weeks of Generals work.
+
+**Changes, all mirroring what `tiberiandawn/CMakeLists.txt` already does.** Three Android branches
+added to `redalert/CMakeLists.txt`, no new mechanism invented:
+
+| Branch | Reason |
+|---|---|
+| Skip `BuildIcons` / `make_icon` on Android | Android supplies its launcher icon from `res/mipmap` |
+| `add_library(VanillaRA SHARED ...)` instead of `add_executable` | SDLActivity `dlopen()`s the engine; it is not an executable |
+| Link `log` and `android` | `__android_log_print`, used by the `VCTD` evidence tag |
+
+**Verified in the built binary, not merely that it compiled:**
+
+| Claim | Probe | Result |
+|---|---|---|
+| Ships in the APK | zip listing | `lib/arm64-v8a/libvanillara.so`, 3,347,248 bytes |
+| Entry point is correct | `llvm-nm -D --defined-only` | `T SDL_main` — **not** `T main` |
+| Links the same stack as TD | `llvm-readelf -d` | `libSDL2.so`, `libopenal.so`, `liblog.so`, `libandroid.so` |
+| Our platform layer is present | `llvm-strings` | `VCTD`, `SDL_StartTextInput`, `TOUCH_TWOFINGER` |
+
+**The `SDL_main` check is not ceremonial.** F-6 was precisely this fault in Tiberian Dawn — the
+symbol came out as `T main` and the app failed at launch with "Couldn't find function SDL_main".
+Checking it on the second engine costs one command and would have caught a repeat.
+
+**The load-bearing result.** `SDL_StartTextInput` and `TOUCH_TWOFINGER` appearing in
+`libvanillara.so` means the touch gesture layer, the soft-keyboard hook, the audio backend and the
+Android logging all apply to Red Alert **with no additional work**. Every platform-layer decision
+from D-16 through D-21 was made in `common/`, and this is the proof that it paid off. D-13's claim
+that the shell was designed for two titles is now demonstrated rather than asserted.
+
+**NOT verified — Red Alert has never been run.** Two things still block it:
+
+1. `CommandPostActivity.getLibraries()` still returns `{"SDL2", "vanillatd"}`. Nothing selects
+   between engines yet. That is the title picker, the next step.
+2. Red Alert's own MIX files are not on the device. Michael must supply them from his copy, as he
+   did for Tiberian Dawn.
+
+**Expansions come free.** Covert Operations (`CD_COVERTOPS`, `COVERTMOVIES.MIX` in
+`tiberiandawn/conquer.cpp`), Counterstrike (`EXPAND.MIX`) and The Aftermath (`EXPAND2.MIX`, both
+handled in `redalert/conquer.cpp:4642` and `:4665`) are data-only. They require no porting work at
+all — only the user's files.
+
+---
+
+## D-24 · 2026-08-03 · Generals Zero Hour is a separate project, gated on a one-day spike
+
+**Finding.** `tarek369/GeneralsZH-Android` is real: GPL v3, native arm64, DirectX 8 → DXVK →
+Vulkan, and its README reports a full gameplay session working. Michael is correct that it exists
+and that it is free to use. It is **not**, however, something that can be copied in.
+
+**Why it is a second project, not an integration:**
+
+| Fact | Consequence |
+|---|---|
+| v0.1 Alpha, released 2026-07-07 | Four weeks old. 4 stars, 0 forks, 1 open issue. |
+| Tested only on OnePlus Pad 2 / **Adreno 830** | Target device is a Pixel 9 Pro Fold / **Mali-G715**. DXVK on Mali is untested by anyone. |
+| Uses **SDL3** | This project uses SDL2. |
+| DXVK requires Meson cross-compilation | An entire second build system. |
+| `.big` archives | Different asset system from `.MIX`. |
+| FFmpeg stubbed | No cutscenes. |
+| Forked from an iOS port, from a macOS port, from TheSuperHackers | Four layers of attribution owed. |
+
+**The hard blocker, which the README does not surface.** SDL2 and SDL3 both ship a Java class
+named `org.libsdl.app.SDLActivity`. Same package, same class name, two incompatible versions.
+**Two classes with one fully-qualified name cannot coexist in a single APK's dex.** This is a
+collision, not a difficulty. It must be resolved before any Generals work begins, by one of:
+
+1. Shading one library's Java package (invasive but contained)
+2. Separate processes with separate dex (heavier, and the shared-dex constraint still applies)
+3. Shipping Generals as a second APK (abandons the single-app goal)
+
+**Ruling: spike before commitment.** One day, one question — *does DXVK initialise on Mali-G715?*
+Nobody currently knows. If it does not, no amount of integration work matters, and everything
+downstream of that answer is wasted effort until it is known. Kill-or-continue.
+
+**Sequencing consequence.** Because Michael requires all titles present before signing (no second
+signing pass), the Generals answer gates the release. The spike therefore comes before the
+performance pass and long before signing.

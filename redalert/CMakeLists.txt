@@ -218,9 +218,13 @@ if(BUILD_REMASTERRA)
 endif()
 
 if(BUILD_VANILLARA)
+    # Android supplies its own launcher icon from res/mipmap; the desktop
+    # ico/icns generation is skipped entirely there. Mirrors tiberiandawn.
+    if(NOT ANDROID)
     include(BuildIcons)
     # Create the custom command for generating the ico file for windows.
     make_icon(INPUT "${CMAKE_SOURCE_DIR}/resources/vanillara_icon.svg" OUTPUT VANILLARA_ICON)
+    endif()
 
     if(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Windows")
         # Generate windows version info.
@@ -238,8 +242,15 @@ if(BUILD_VANILLARA)
         )
     endif()
 
+    # On Android the engine is not an executable: SDLActivity dlopen()s it as a
+    # shared library, so the same sources are built into libvanillara.so.
+    # D-13: this is the second title in the shell, loaded by the same activity.
+    if(NOT ANDROID)
     # A target must include the icon for the custom command to run.
     add_executable(VanillaRA ${REDALERT_SRC} ${REDALERT_NET_SRC} ${REDALERT_HEADERS} ${VANILLARA_RC} ${VANILLARA_ICON})
+    else()
+    add_library(VanillaRA SHARED ${REDALERT_SRC} ${REDALERT_NET_SRC} ${REDALERT_HEADERS})
+    endif()
 
     if(MAKE_BUNDLE)
         set_source_files_properties(${VANILLARA_ICON} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
@@ -256,7 +267,12 @@ if(BUILD_VANILLARA)
 
     target_compile_definitions(VanillaRA PUBLIC $<$<CONFIG:Debug>:_DEBUG> ${VANILLA_DEFS})
     target_include_directories(VanillaRA PUBLIC ${CMAKE_SOURCE_DIR} .)
+    if(NOT ANDROID)
     target_link_libraries(VanillaRA commonv ${VANILLA_LIBS} ${STATIC_LIBS})
+    else()
+    # 'log' provides __android_log_print, used by the VCTD evidence tag.
+    target_link_libraries(VanillaRA commonv ${VANILLA_LIBS} ${STATIC_LIBS} log android)
+    endif()
     set_target_properties(VanillaRA PROPERTIES OUTPUT_NAME vanillara)
     if(MAP_EDITORRA)
         target_compile_definitions(VanillaRA PUBLIC INTERNAL_VERSION)

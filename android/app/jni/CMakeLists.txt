@@ -37,13 +37,14 @@ add_subdirectory(openal-soft)
 #
 # Options are forced here rather than left to the engine's defaults:
 #   NETWORKING        OFF  - D-2, WinSock-era code, irrelevant to the mission
-#   BUILD_VANILLARA   OFF  - D-2, TD only through Gate 6 (D-13 keeps the slot)
+#   BUILD_VANILLARA   ON   - D-13, second title. Turned on after Gate 6 closed,
+#                            so the multi-title shell is proven on the easiest
+#                            possible case before anything harder is attempted.
 #   SDL2              ON   - the only video backend on Android
-#   OPENAL            OFF  - Phase 3 first pass; audio is wired after the
-#                            engine boots, one variable at a time
+#   OPENAL            ON   - Gate 6 part 1, D-21
 # ---------------------------------------------------------------------------
 set(BUILD_VANILLATD ON  CACHE BOOL "" FORCE)
-set(BUILD_VANILLARA OFF CACHE BOOL "" FORCE)
+set(BUILD_VANILLARA ON  CACHE BOOL "" FORCE)
 set(BUILD_REMASTERTD OFF CACHE BOOL "" FORCE)
 set(BUILD_REMASTERRA OFF CACHE BOOL "" FORCE)
 set(NETWORKING      OFF CACHE BOOL "" FORCE)

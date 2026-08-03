@@ -805,3 +805,63 @@ work about to be done, it is not a response — do the work first.
 
 **Cost.** Borne entirely by Michael, in tokens and in twenty minutes of wall clock. The agent
 cannot refund either. Recorded here so the failure is at least paid for once, in doctrine.
+
+---
+
+## GATE 6 · PART 2 OF 2 · LIFECYCLE · PASS · 2026-08-03
+
+**Michael's gate report, verbatim:** *"ALL PASS!"*
+
+| Criterion | Verdict |
+|---|---|
+| Play a mission for ~2 minutes | PASS |
+| Sleep mid-mission, resume, state and audio intact | PASS |
+| Save mid-mission with a typed name | PASS |
+| Two-finger tap cancels an open save dialog | PASS — **closes the inferred item from the input record** |
+| Fold and unfold mid-mission, both directions (D-14) | PASS |
+| Force-kill from recents, cold relaunch, load the save | PASS |
+
+**GATE 6 IS CLOSED.** Part 1 (audio) passed 2026-08-02; part 2 (lifecycle) passes here. This also
+absorbs the coverage deferred from Gate 5 under D-20 — long-session stability and building
+placement were exercised during the mission play required by step 1.
+
+**The one previously-inferred result is now observed.** The input record left "two-finger tap
+cancels a dialog" explicitly inferred rather than verified, because Michael could not reach a
+cancellable dialog that early in a mission. Step 3 of this gate put him in a save dialog and he
+cancelled it. It is now observation, not inference, and the open item is closed rather than
+quietly forgotten.
+
+**D-14 discharged.** The fold/unfold case was raised as a specific risk when the two-title shell
+was designed. It is now tested mid-mission in both directions and passes.
+
+---
+
+### F-11 · The lifecycle harness captured 3.7 MB of noise and no evidence
+
+**Symptom.** `lifecycle.cmd` was built to capture logcat during Gate 6 part 2 so a FAIL could be
+read back rather than re-run from memory. It ran unfiltered. After Michael's test run the capture
+was 3,791,777 bytes and contained **not one line from the application** — no `VCTD`, no `openal`,
+no activity lifecycle. The `report` action duly printed "nothing listed above = clean."
+
+**Root cause.** This device floods logcat: `pixel-thermal` alone accounted for 609 of the last
+3,000 lines, with `WifiHAL`, `AOC` and `CHRE` close behind. The ring buffer rotated the app's own
+output out within minutes. The harness was reporting the *absence of retained evidence* as the
+*absence of faults* — the two are not the same and it presented the dangerous one as the safe one.
+
+**Caught before it was relied upon.** The empty result was checked rather than reported as a clean
+run. Had it been trusted, a crash would have been recorded as a PASS.
+
+**Fix.** `lifecycle.cmd start` now captures a filtered tag set and silences everything else:
+`CPGATE:V VCTD:V openal:V AndroidRuntime:E ActivityManager:I ActivityTaskManager:I DEBUG:V libc:F SDL:V *:S`.
+Verified: a force-kill and cold relaunch produced 12,700 bytes of pure signal — SDL init, activity
+teardown and restart, `Start proc`, and the engine's own path and audio lines — where the
+unfiltered version had produced 3.7 MB of thermal telemetry.
+
+**Prevention rule.** A capture tool must be validated against a *known-present* signal before its
+silence is treated as meaningful. An empty result from an unvalidated probe is no evidence at all,
+and reporting it as "clean" inverts its meaning.
+
+**Standing caveat on this gate.** Because the harness was only fixed after Michael's run, the
+Gate 6 part 2 PASS rests on **his direct observation**, not on captured logs. That is a legitimate
+basis — he holds gate authority — but it is recorded honestly here rather than dressed up with
+corroboration the tooling did not actually provide.

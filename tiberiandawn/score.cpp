@@ -50,6 +50,11 @@
 #include "common/framelimit.h"
 #include "common/settings.h"
 #include "endianness.h"
+#ifdef __ANDROID__
+// F-15: Input_Name bypasses GadgetClass, so the soft keyboard must be raised
+// explicitly here rather than by the general Set_Focus hook.
+#include <SDL.h>
+#endif
 
 #define SCORETEXT_X 184
 #define SCORETEXT_Y 8
@@ -1613,6 +1618,23 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos, char const pal[])
 
     void const* keystrok = MFCD::Retrieve("KEYSTROK.AUD");
 
+#ifdef __ANDROID__
+    /*
+    ** F-15. Raise the Android soft keyboard for high-score name entry.
+    **
+    ** The general soft-keyboard hook lives on GadgetClass::Set_Focus, which
+    ** covers every EditClass text field. This routine does NOT use a gadget -
+    ** it reads raw keys straight from Keyboard->Get() below - so that hook
+    ** never fires here.
+    **
+    ** The result was a hard stop: win a mission, earn a top score, and the
+    ** game waits forever for a name the player has no way to type. From the
+    ** player's side it looks like the screen simply has no way forward, which
+    ** is exactly how it was reported.
+    */
+    SDL_StartTextInput();
+#endif
+
     /*
     ** Ready the hidpage so it can restore background under zoomed letters
     */
@@ -1687,6 +1709,12 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos, char const pal[])
 
         Frame_Limiter();
     } while (key != KN_RETURN && key != KN_KEYPAD_RETURN);
+
+#ifdef __ANDROID__
+    // Dismiss the keyboard once the name is committed - the loop above only
+    // exits on Return, so reaching here means entry is genuinely finished.
+    SDL_StopTextInput();
+#endif
 }
 
 void Animate_Cursor(int pos, int ypos)

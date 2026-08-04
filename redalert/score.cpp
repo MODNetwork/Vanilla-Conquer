@@ -50,6 +50,11 @@
 #include "common/wsa.h"
 #include "common/settings.h"
 #include "common/winasm.h"
+#ifdef __ANDROID__
+// F-15: Input_Name bypasses GadgetClass, so the soft keyboard must be raised
+// explicitly here rather than by the general Set_Focus hook.
+#include <SDL.h>
+#endif
 
 #define SCORETEXT_X 184
 #define SCORETEXT_Y 8
@@ -1263,6 +1268,22 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos, char const pal[])
 
     void const* keystrok = MFCD::Retrieve("KEYSTROK.AUD");
 
+#ifdef __ANDROID__
+    /*
+    ** F-15. Raise the Android soft keyboard for high-score name entry.
+    **
+    ** Identical fault and fix to tiberiandawn/score.cpp: this routine reads
+    ** raw keys rather than using an EditClass, so the general soft-keyboard
+    ** hook on GadgetClass::Set_Focus never fires and the player is left on a
+    ** screen with no way forward.
+    **
+    ** Fixed in both engines at once rather than waiting for it to be
+    ** rediscovered in Red Alert - it is the same code lineage and would fail
+    ** the same way.
+    */
+    SDL_StartTextInput();
+#endif
+
     /*
     ** Ready the hidpage so it can restore background under zoomed letters
     */
@@ -1368,6 +1389,12 @@ void ScoreClass::Input_Name(char str[], int xpos, int ypos, char const pal[])
 
         Frame_Limiter();
     } while (key != KA_RETURN); //	} while(key != KN_RETURN && key!=KN_KEYPAD_RETURN);
+
+#ifdef __ANDROID__
+    // Dismiss the keyboard once the name is committed - the loop only exits on
+    // Return, so reaching here means entry is genuinely finished.
+    SDL_StopTextInput();
+#endif
 }
 
 void Animate_Cursor(int pos, int ypos)

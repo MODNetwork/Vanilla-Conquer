@@ -36,6 +36,9 @@ public class CommandPostActivity extends SDLActivity {
     /** Used when the activity is started directly, e.g. by adb am start. */
     private static final String DEFAULT_ENGINE = "vanillatd";
 
+    /** D-31 on-screen command bar. Null until onStart has attached it. */
+    private CommandBarView commandBar = null;
+
     @Override
     protected String[] getLibraries() {
         // getLibraries() is called by SDLActivity during onCreate, before
@@ -98,6 +101,26 @@ public class CommandPostActivity extends SDLActivity {
     }
 
     @Override
+    protected void onStart() {
+        super.onStart();
+
+        // D-31: attach the on-screen command bar to SDL's own layout.
+        //
+        // Deferred to onStart rather than onCreate: SDLActivity builds mLayout
+        // during its onCreate, and getContentView() returns null before that
+        // has run. Attaching too early would silently do nothing.
+        // getContentView() is declared as View, not ViewGroup, so the type is
+        // checked rather than cast blindly - if SDL ever changes what it
+        // returns, this degrades to "no command bar" instead of a crash.
+        if (commandBar == null) {
+            final android.view.View layout = getContentView();
+            if (layout instanceof android.view.ViewGroup) {
+                commandBar = CommandBarView.attach(this, (android.view.ViewGroup) layout);
+            }
+        }
+    }
+
+    @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
@@ -106,6 +129,12 @@ public class CommandPostActivity extends SDLActivity {
         // this they would stay visible for the rest of the session.
         if (hasFocus) {
             applyImmersiveMode();
+        } else if (commandBar != null) {
+            // Drop any latched modifier on focus loss. A Shift left held
+            // across a pause is still held on resume as far as the engine is
+            // concerned, and the player would have no way to work out why
+            // their clicks had stopped behaving normally.
+            commandBar.releaseAllModifiers();
         }
     }
 

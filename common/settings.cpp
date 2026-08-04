@@ -42,7 +42,32 @@ SettingsClass::SettingsClass()
 #else
     Video.TouchPanInvert = false;
 #endif
+#ifdef __ANDROID__
+    /*
+    ** D-30. 60 on Android, against the desktop default of 120.
+    **
+    ** Measured, not assumed. A five-minute play session on a Pixel 9 Pro Fold
+    ** held a locked 120fps - average frame time 8.32ms against a 120Hz budget
+    ** of 8.33ms, worst frame 8.59ms, not a single missed vsync. Thermals were
+    ** flat throughout: skin 37.06C start to finish, no throttling.
+    **
+    ** The problem is what it costs. The process sat at 90-137% CPU - over a
+    ** full core - and battery fell 71% to 69% in five minutes, roughly 24% an
+    ** hour. For a 1995 game rendering 320x200 sprites that is a lot of power
+    ** spent on frames nobody asked for.
+    **
+    ** The engine's simulation runs on its own fixed tick and is unaffected by
+    ** this: the render limiter only governs how often the same game state is
+    ** redrawn. Halving it should roughly halve the render cost with no change
+    ** to how the game plays or feels.
+    **
+    ** Overridable with FrameLimit in CONQUER.INI, so the 120 case can be
+    ** re-measured any time without a rebuild.
+    */
+    Video.FrameLimit = 60;
+#else
     Video.FrameLimit = 120;
+#endif
     Video.InterpolationMode = 2;
     Video.HardwareCursor = false;
     Video.DOSMode = false;

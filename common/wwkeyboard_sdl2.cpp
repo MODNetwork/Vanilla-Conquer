@@ -320,6 +320,17 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
             exit(0);
             break;
         case SDL_KEYDOWN:
+#ifdef __ANDROID__
+            // Instrumentation for the D-31 command bar audit. Every button on
+            // that bar arrives here as an ordinary SDL_KEYDOWN, so this is the
+            // one place that can distinguish "the key never arrived" from "the
+            // key arrived and the engine ignored it" - two failures that look
+            // identical from the player's side.
+            DBG_INFO("KEY: scancode=%d sym=%d mod=0x%04X",
+                     (int)event.key.keysym.scancode,
+                     (int)event.key.keysym.sym,
+                     (unsigned)event.key.keysym.mod);
+#endif
             Put_Key_Message(event.key.keysym.scancode, false);
             break;
         case SDL_KEYUP:

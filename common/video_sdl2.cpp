@@ -46,6 +46,11 @@
 #include "debugstring.h"
 
 #include <SDL.h>
+#ifdef __ANDROID__
+// D-32: JNI callback into the Java layer so the command bar knows whether the
+// engine is in gameplay.
+#include <jni.h>
+#endif
 
 extern WWKeyboardClass* Keyboard;
 static SDL_Window* window;
@@ -494,9 +499,81 @@ void Get_Video_Scale(float& x, float& y)
     y = hwcursor.ScaleY;
 }
 
+#ifdef __ANDROID__
+/*
+** D-32. Tell the Java layer whether the engine is in gameplay, so the on-screen
+** command bar can hide itself outside it.
+**
+** Set_Video_Cursor_Clip is the right signal and it costs nothing to use: both
+** engines already call it at exactly the boundaries that matter, and it is
+** already platform-layer code, so NO game logic is touched to obtain this.
+**
+**   tiberiandawn/conquer.cpp:186/306   true on entering the main loop,
+**                                      false on leaving it - set on the very
+**                                      next line to InMainLoop, whose own
+**                                      comment in externs.h:411 reads
+**                                      "True if in game state rather than
+**                                      menu state"
+**   tiberiandawn/conquer.cpp:1711-1740 false around Do_Win, Do_Lose and
+**                                      Do_Restart - the score and debrief
+**                                      screens
+**   redalert/conquer.cpp               same pattern, same call
+**
+** So: clipped == true means gameplay; false means menu, movie, score or
+** debrief. Nothing about that mapping was invented here - it is the engine's
+** own notion of when the cursor belongs to the battlefield.
+**
+** Only transitions are reported. This is called on every dialog open and
+** close, and a JNI hop per call would be wasteful for no gain.
+*/
+static void Notify_Java_In_Game(bool in_game)
+{
+    static int last_state = -1;
+    const int state = in_game ? 1 : 0;
+
+    if (state == last_state) {
+        return;
+    }
+    last_state = state;
+
+    JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+    if (env == nullptr) {
+        return;
+    }
+
+    jclass cls = env->FindClass("dev/pricharda/commandpost/CommandPostActivity");
+    if (cls == nullptr) {
+        env->ExceptionClear();
+        return;
+    }
+
+    jmethodID mid = env->GetStaticMethodID(cls, "nativeSetInGame", "(Z)V");
+    if (mid == nullptr) {
+        // Cleared rather than left pending: an unhandled JNI exception would
+        // abort the next JNI call made from this thread, which would take the
+        // game down over a cosmetic overlay.
+        env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+        return;
+    }
+
+    env->CallStaticVoidMethod(cls, mid, (jboolean)(in_game ? JNI_TRUE : JNI_FALSE));
+    env->DeleteLocalRef(cls);
+
+    // Logged because the failure mode is invisible otherwise: the command bar
+    // defaults to hidden, so "correctly gated" and "the JNI call never fired"
+    // look identical on screen. This makes the transition observable.
+    DBG_INFO("CommandBar: in-game = %s", in_game ? "true" : "false");
+}
+#endif
+
 void Set_Video_Cursor_Clip(bool clipped)
 {
     hwcursor.Clip = clipped;
+
+#ifdef __ANDROID__
+    Notify_Java_In_Game(clipped);
+#endif
 
     if (window) {
         int relative;

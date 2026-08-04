@@ -39,6 +39,37 @@ public class CommandPostActivity extends SDLActivity {
     /** D-31 on-screen command bar. Null until onStart has attached it. */
     private CommandBarView commandBar = null;
 
+    /**
+     * Static handle for the JNI callback below. The engine has no reference to
+     * the activity instance, and only one game activity exists at a time.
+     */
+    private static CommandPostActivity sInstance = null;
+
+    /**
+     * D-32. Called from common/video_sdl2.cpp when the engine enters or leaves
+     * gameplay, so the command bar can hide itself over menus, movies, score
+     * and debrief screens.
+     *
+     * Arrives on the SDL thread, so the view work is posted to the UI thread -
+     * touching a View off the main thread is undefined behaviour and would
+     * eventually crash rather than fail visibly.
+     */
+    public static void nativeSetInGame(final boolean inGame) {
+        final CommandPostActivity self = sInstance;
+        if (self == null) {
+            return;
+        }
+
+        self.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (self.commandBar != null) {
+                    self.commandBar.setInGame(inGame);
+                }
+            }
+        });
+    }
+
     @Override
     protected String[] getLibraries() {
         // getLibraries() is called by SDLActivity during onCreate, before
@@ -112,12 +143,24 @@ public class CommandPostActivity extends SDLActivity {
         // getContentView() is declared as View, not ViewGroup, so the type is
         // checked rather than cast blindly - if SDL ever changes what it
         // returns, this degrades to "no command bar" instead of a crash.
+        sInstance = this;
+
         if (commandBar == null) {
             final android.view.View layout = getContentView();
             if (layout instanceof android.view.ViewGroup) {
                 commandBar = CommandBarView.attach(this, (android.view.ViewGroup) layout);
             }
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        // Drop the static reference so a JNI callback arriving during teardown
+        // cannot touch a dead activity.
+        if (sInstance == this) {
+            sInstance = null;
+        }
+        super.onDestroy();
     }
 
     @Override

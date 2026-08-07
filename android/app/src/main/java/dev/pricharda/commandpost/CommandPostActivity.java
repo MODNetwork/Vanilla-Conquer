@@ -70,27 +70,31 @@ public class CommandPostActivity extends SDLActivity {
         });
     }
 
+    /**
+     * Which engine this activity was asked to load.
+     *
+     * Whitelisted rather than trusted: an unrecognised value would otherwise
+     * reach System.loadLibrary() and crash with a confusing UnsatisfiedLinkError
+     * instead of falling back cleanly.
+     */
+    private String selectedEngine() {
+        final Intent intent = getIntent();
+        if (intent != null) {
+            final String requested = intent.getStringExtra(EXTRA_ENGINE);
+            if ("vanillatd".equals(requested) || "vanillara".equals(requested)) {
+                return requested;
+            }
+        }
+        return DEFAULT_ENGINE;
+    }
+
     @Override
     protected String[] getLibraries() {
         // getLibraries() is called by SDLActivity during onCreate, before
         // super.onCreate() completes, so getIntent() is already available.
-        String engine = DEFAULT_ENGINE;
-
-        final Intent intent = getIntent();
-        if (intent != null) {
-            final String requested = intent.getStringExtra(EXTRA_ENGINE);
-
-            // Whitelist rather than trust the extra. An unrecognised value would
-            // otherwise reach System.loadLibrary() and crash with a confusing
-            // UnsatisfiedLinkError instead of a clear fallback.
-            if ("vanillatd".equals(requested) || "vanillara".equals(requested)) {
-                engine = requested;
-            }
-        }
-
         return new String[] {
             "SDL2",
-            engine
+            selectedEngine()
         };
     }
 
@@ -148,7 +152,11 @@ public class CommandPostActivity extends SDLActivity {
         if (commandBar == null) {
             final android.view.View layout = getContentView();
             if (layout instanceof android.view.ViewGroup) {
-                commandBar = CommandBarView.attach(this, (android.view.ViewGroup) layout);
+                // D-33: the bar needs to know which engine is loaded. FORM and
+                // QUEUE exist in Red Alert but not Tiberian Dawn, and are
+                // dimmed rather than removed.
+                commandBar = CommandBarView.attach(
+                    this, (android.view.ViewGroup) layout, selectedEngine());
             }
         }
     }

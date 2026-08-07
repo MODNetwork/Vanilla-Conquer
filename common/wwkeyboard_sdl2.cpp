@@ -684,6 +684,10 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
     unsigned short key;
     SDL_Scancode scancode;
 
+    // D-36: gameplay or not. Drives the D-pad only; every other button means
+    // the same thing everywhere.
+    const bool in_game = Get_Video_Cursor_Clip();
+
     switch (button.button) {
     case SDL_CONTROLLER_BUTTON_A:
         mousePress = true;
@@ -707,7 +711,7 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
         break;
     case SDL_CONTROLLER_BUTTON_BACK:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_UP; // sidebar scroll up - Options.KeySidebarUp
+        scancode = SDL_SCANCODE_E; // select everything on screen
         break;
     case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
         keyboardPress = true;
@@ -725,24 +729,57 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
         keyboardPress = true;
         scancode = SDL_SCANCODE_LALT; // force move, and recall team
         break;
+    /*
+    ** D-36: the D-pad is the one control whose meaning depends on where you
+    ** are. Outside a mission it drives the engine's own menu navigation, which
+    ** already exists and is fully keyboard-driven - menus.cpp:254/259/290 map
+    ** KN_UP, KN_DOWN and KN_RETURN. Nothing had to be written for that; the
+    ** arrows simply were not being sent. In a mission the arrows would be
+    ** wasted, so it carries sidebar scroll and the first two team slots.
+    **
+    ** in_game comes from Get_Video_Cursor_Clip - the same signal D-32 already
+    ** uses to hide the on-screen bar outside gameplay, and which Michael has
+    ** already passed on that behaviour.
+    */
     case SDL_CONTROLLER_BUTTON_DPAD_UP:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_E; // select everything on screen
+        scancode = in_game ? SDL_SCANCODE_UP    // sidebar scroll up
+                           : SDL_SCANCODE_UP;   // menu: move selection up
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_DOWN; // sidebar scroll down - Options.KeySidebarDown
+        scancode = in_game ? SDL_SCANCODE_DOWN  // sidebar scroll down
+                           : SDL_SCANCODE_DOWN; // menu: move selection down
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_1; // team 1
+        scancode = in_game ? SDL_SCANCODE_1     // team 1
+                           : SDL_SCANCODE_LEFT; // menu: difficulty, sliders
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_2; // team 2
+        scancode = in_game ? SDL_SCANCODE_2      // team 2
+                           : SDL_SCANCODE_RIGHT; // menu: difficulty, sliders
         break;
     default:
         break;
+    }
+
+    /*
+    ** D-36: log every press. This is what turns "that button did nothing" into
+    ** a one-glance answer, and it distinguishes the three things that look
+    ** identical from the outside: the button never arrived (no line at all),
+    ** it arrived and sent the wrong key (line shows the wrong scancode), or it
+    ** sent the right key and the engine ignored it (line is correct).
+    ** Presses only - a release line for every press would double the noise and
+    ** tell us nothing extra.
+    */
+    if (button.state == SDL_PRESSED) {
+        DBG_INFO("CONTROLLER: button %d -> %s %d (in_game=%s)",
+                 button.button,
+                 keyboardPress ? "scancode" : (mousePress ? "mousebtn" : "UNMAPPED"),
+                 keyboardPress ? (int)scancode : (mousePress ? (int)key : -1),
+                 in_game ? "yes" : "no");
     }
 
     if (keyboardPress) {

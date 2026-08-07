@@ -127,6 +127,19 @@ void SettingsClass::Load(INIClass& ini)
     ** touch path behaves exactly as it did before.
     */
     Mouse.ControllerEnabled = true;
+
+    /*
+    ** D-36: cursor speed, forced for the same reason and in the same place.
+    ** ControllerPointerSpeed=10 is already persisted in every existing
+    ** conquer.ini and redalert.ini, so raising the constructor default alone
+    ** would have changed nothing on any device that had run the game before -
+    ** the exact F-16 trap, avoided rather than repeated.
+    **
+    ** Process_Controller_Axis_Motion multiplies stick deflection by this value
+    ** linearly, so 18 is 1.8x the stock cursor speed. One number, easy to
+    ** retune on Michael's word.
+    */
+    Mouse.ControllerPointerSpeed = 18;
 #endif
     /*
     ** Compatibility with CNCNet configuration for this feature

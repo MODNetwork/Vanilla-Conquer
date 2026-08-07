@@ -63,6 +63,16 @@ extern SurfaceMonitorClass& AllSurfaces; // List of all surfaces
 bool Set_Video_Mode(int w, int h, int bits_per_pixel);
 void Get_Video_Scale(float& x, float& y);
 void Set_Video_Cursor_Clip(bool clipped);
+
+/*
+** D-36: reads back the state Set_Video_Cursor_Clip last set. The engine clips
+** the cursor during gameplay and releases it for menus, movies, score and
+** credit screens, which makes this an "are we in gameplay" flag that the
+** platform layer can see. D-32 already proved it by gating the on-screen
+** command bar on it. Used here so one physical control can mean different
+** things in a menu and in a mission.
+*/
+bool Get_Video_Cursor_Clip();
 void Move_Video_Mouse(float xrel, float yrel);
 void Get_Video_Mouse(int& x, int& y);
 void Toggle_Video_Fullscreen();

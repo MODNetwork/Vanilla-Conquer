@@ -860,3 +860,68 @@ CONTROLLER: 'Android Accelerometer' has no SDL mapping - its buttons cannot reac
 ```
 
 The accelerometer line is benign - Android exposes it as a joystick and it has no buttons.
+
+
+---
+
+## D-36 - Context-sensitive D-pad, sidebar scroll, faster cursor
+
+Michael's gate on D-35: **PASS except the sidebar is not reachable**, plus two additions -
+the D-pad should drive menus and toggles (main menu up/down, difficulty left/right), and
+the cursor should move faster.
+
+**The menus already had keyboard navigation.** `menus.cpp:254/259/290` handle `KN_UP`,
+`KN_DOWN` and `KN_RETURN`; a second menu at `:902/925/946` does the same. Nothing needed
+writing for this. The arrows simply were not being sent, because in gameplay the D-pad was
+carrying teams and select-all. This was a mapping gap, not missing capability - found by
+reading before building.
+
+**The D-pad is now the one control whose meaning depends on context.**
+
+| D-pad | In a mission | Everywhere else |
+|---|---|---|
+| Up | sidebar scroll up | menu selection up |
+| Down | sidebar scroll down | menu selection down |
+| Left | team 1 | left - difficulty, sliders |
+| Right | team 2 | right - difficulty, sliders |
+
+The gameplay test is `Get_Video_Cursor_Clip()`, added in this change as a read-back of the
+state `Set_Video_Cursor_Clip` already maintained. That is the same signal D-32 uses to hide
+the on-screen command bar outside gameplay, and Michael has already passed that behaviour -
+so this reuses a proven flag rather than inventing a second notion of "in game".
+
+**Sidebar scroll moved onto the D-pad, and select-all moved to BACK.** Previously scroll-down
+was on D-pad down and scroll-up on BACK, which split one action across two unrelated
+controls. Both directions now sit on an adjacent pair. This also removes a dependency on
+BACK, which is the button most likely to be intercepted by Android on a phone controller -
+if BACK turns out to be dead, the only casualty is select-all rather than half the sidebar.
+
+**Why the sidebar failed is still not proven.** The engine's handling is unconditional
+(`conquer.cpp:705/714` for TD, `:735/744` for RA - no cursor-position requirement), and
+`Put_Key_Message` does not set `WWKEY_VK_BIT`, so `KN_UP`/`KN_DOWN` should have matched.
+Three candidates remain: the sidebar had fewer items than fit and correctly did nothing,
+BACK never arrived, or the key arrived and something upstream consumed it. Rather than
+guess, a diagnostic now makes the answer visible.
+
+**Diagnostic added.** Every controller button press logs its SDL button index, what it sent,
+and whether the game considered itself in a mission:
+
+```
+CONTROLLER: button 11 -> scancode 82 (in_game=yes)
+```
+
+This separates the three failures that look identical from the outside: no line at all
+means the button never arrived; a wrong scancode means the mapping is wrong; a correct
+scancode means the engine ignored it. Presses only - release lines would double the noise
+and add nothing.
+
+**Cursor speed raised to 18 from 10.** `Process_Controller_Axis_Motion` multiplies stick
+deflection by `Settings.Mouse.ControllerPointerSpeed` linearly, so this is 1.8x. Forced on
+Android after the INI read for exactly the F-16 reason: `ControllerPointerSpeed=10` is
+already persisted in every existing `conquer.ini` and `redalert.ini`, so changing the
+constructor default alone would have done nothing on any device that had run the game
+before. One number, retuned on request.
+
+**Build note, not a code note.** A gradle invocation was killed by a tool timeout and left
+ninja's deps log locked, failing the next build with `Permission denied`. Cleared with
+`gradlew --stop`. No source or build configuration was involved and nothing was deleted.

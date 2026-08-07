@@ -608,6 +608,11 @@ void Set_Video_Cursor_Clip(bool clipped)
     }
 }
 
+bool Get_Video_Cursor_Clip()
+{
+    return hwcursor.Clip;
+}
+
 void Move_Video_Mouse(float xrel, float yrel)
 {
     if (Keyboard->Is_Gamepad_Active() || hwcursor.Clip || !Settings.Video.Windowed) {

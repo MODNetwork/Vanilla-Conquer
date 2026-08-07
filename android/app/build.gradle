@@ -1,5 +1,42 @@
 apply plugin: 'com.android.application'
 
+/*
+ * D-34 release signing.
+ *
+ * The keystore and its passwords live OUTSIDE this repository and are never
+ * committed, never printed, and never pasted into a chat. This file reads them
+ * from a properties file whose path is itself outside the tree:
+ *
+ *     C:\DEV\_cnc-keys\keystore.properties
+ *
+ * containing:
+ *     storeFile=C:\\DEV\\_cnc-keys\\commandpost.jks
+ *     storePassword=...
+ *     keyAlias=commandpost
+ *     keyPassword=...
+ *
+ * If that file is absent the release build still configures and compiles - it
+ * simply produces an unsigned APK. A missing keystore must not break the build
+ * for anyone who clones this repo, and it must fail visibly rather than
+ * silently substituting the debug key, which would be worse than not signing.
+ */
+def keystorePropsFile = file("${System.getenv('CNC_KEYSTORE_PROPS') ?: 'C:/DEV/_cnc-keys/keystore.properties'}")
+def keystoreProps = new Properties()
+def haveKeystore = false
+
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+    def ks = file(keystoreProps['storeFile'] ?: '')
+    if (ks.exists()) {
+        haveKeystore = true
+        println "Release signing: using keystore at ${ks.absolutePath}"
+    } else {
+        println "Release signing: keystore.properties found but storeFile does not exist - release will be UNSIGNED"
+    }
+} else {
+    println "Release signing: no keystore.properties at ${keystorePropsFile} - release will be UNSIGNED"
+}
+
 android {
     namespace "dev.pricharda.commandpost"
     compileSdkVersion 34
@@ -23,6 +60,17 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            if (haveKeystore) {
+                storeFile     file(keystoreProps['storeFile'])
+                storePassword keystoreProps['storePassword']
+                keyAlias      keystoreProps['keyAlias']
+                keyPassword   keystoreProps['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
@@ -31,6 +79,14 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+
+            // Only attached when a real keystore was found. Deliberately NOT
+            // falling back to the debug key: a debug-signed "release" APK looks
+            // shippable and is not, which is a worse failure than an obviously
+            // unsigned one.
+            if (haveKeystore) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

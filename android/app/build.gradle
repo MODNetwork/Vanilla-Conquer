@@ -101,18 +101,38 @@ android {
         }
     }
 
+    /*
+     * Licence text must ship INSIDE the APK, not merely sit in the repo. EA's
+     * GPL v3 section 7 term: "Any propagation or conveyance of this program
+     * must include this copyright notice and these terms." An APK handed to
+     * anyone without these is non-compliant.
+     *
+     * Copied at build time rather than checked in, so the shipped text can
+     * never drift from the authoritative files at the repo root.
+     *
+     * The output goes to a BUILD directory, not src/main/assets. The first
+     * version wrote into the source tree and the release build failed on it:
+     *
+     *   Task ':app:lintVitalAnalyzeRelease' uses this output of task
+     *   ':app:copyLicenceAssets' without declaring an explicit or implicit
+     *   dependency.
+     *
+     * Generated files do not belong in a source directory. Every task that
+     * reads src/main/assets would need to declare a dependency on the
+     * generator, which is a trap for anything added later. Registering a
+     * generated directory as an extra asset source instead means Gradle infers
+     * the dependency from the task's declared output, and the debug build's
+     * apparent success was only luck of task ordering.
+     */
+    sourceSets {
+        main {
+            assets.srcDirs += "${layout.buildDirectory.get()}/generated/licenceAssets"
+        }
+    }
+
     applicationVariants.all { variant ->
         tasks["merge${variant.name.capitalize()}Assets"]
             .dependsOn("externalNativeBuild${variant.name.capitalize()}")
-
-        // Licence text must ship INSIDE the APK, not merely sit in the repo.
-        // EA's GPL v3 section 7 term: "Any propagation or conveyance of this
-        // program must include this copyright notice and these terms." An APK
-        // handed to anyone without these is non-compliant.
-        //
-        // Copied at build time rather than checked into assets/ so the shipped
-        // text can never drift from the authoritative files at the repo root.
-        tasks["merge${variant.name.capitalize()}Assets"]
             .dependsOn("copyLicenceAssets")
     }
 
@@ -121,12 +141,34 @@ android {
     }
 }
 
+/*
+ * Lint also reads the asset directories, and adding a generated directory to
+ * assets.srcDirs as a plain path carries no information about which task
+ * produced it. Gradle's validation therefore rejects the release build:
+ *
+ *   Task ':app:lintVitalAnalyzeRelease' uses this output of task
+ *   ':app:copyLicenceAssets' without declaring an explicit or implicit
+ *   dependency.
+ *
+ * This is Gradle's own suggested solution 2, applied to every lint task rather
+ * than only the one that happened to fail. lintVitalAnalyzeRelease was the
+ * first to complain, but lintAnalyzeDebug and the rest read the same directory
+ * and would fail the same way the moment anyone ran them.
+ *
+ * Matched by name rather than listed, because the set of lint tasks is created
+ * per variant by AGP and hardcoding today's names would break when a variant
+ * is added.
+ */
+tasks.matching { it.name.startsWith("lint") }.configureEach {
+    dependsOn("copyLicenceAssets")
+}
+
 tasks.register('copyLicenceAssets', Copy) {
     from("${rootDir}/..") {
         include 'License.txt'
         include 'THIRD-PARTY-LICENSES.txt'
     }
-    into "${projectDir}/src/main/assets"
+    into layout.buildDirectory.dir("generated/licenceAssets")
 }
 
 dependencies {

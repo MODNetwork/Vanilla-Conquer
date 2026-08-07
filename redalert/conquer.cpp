@@ -729,6 +729,24 @@ void Keyboard_Process(KeyNumType& input)
     }
 
     /*
+    **	D-40: toggle the sidebar with TAB - see the matching block in
+    **	tiberiandawn/conquer.cpp for the full reasoning. Short version: the
+    **	stock handler sits in SidebarClass::AI, which is fed by the gadget layer
+    **	and does not fire on Android; Keyboard_Process is fed straight from the
+    **	key buffer and does.
+    **
+    **	Red Alert gates its own TAB handler on Options.ToggleSidebar
+    **	(redalert/sidebar.cpp:826), defaulting true (options.cpp:105), and
+    **	forces the sidebar permanently on when it is false. That gate is honoured
+    **	here so behaviour matches the title's own setting rather than overriding
+    **	it - with ToggleSidebar off, Red Alert is meant to keep the sidebar up.
+    */
+    if (key != 0 && key == KN_TAB && Options.ToggleSidebar) {
+        Map.SidebarClass::Activate(-1);
+        input = KN_NONE;
+    }
+
+    /*
     **	Scrolls the sidebar up one slot.
     */
     if (key != 0
@@ -4086,7 +4104,7 @@ bool Force_CD_Available(int cd)
 #endif
 
 #ifdef FRENCH
-                sprintf(buffer, "InsŠrez le %s", _cd_name[cd]);
+                sprintf(buffer, "Insï¿½rez le %s", _cd_name[cd]);
 #else
 #ifdef GERMAN
                 sprintf(buffer, "Bitte %s", _cd_name[cd]);
@@ -4097,7 +4115,7 @@ bool Force_CD_Available(int cd)
             } else {
 #ifdef DVD
 #ifdef FRENCH
-                sprintf(buffer, "InsŠrez le %s", _cd_name[4]);
+                sprintf(buffer, "Insï¿½rez le %s", _cd_name[4]);
 #else
 #ifdef GERMAN
                 sprintf(buffer, "Bitte %s", _cd_name[4]);

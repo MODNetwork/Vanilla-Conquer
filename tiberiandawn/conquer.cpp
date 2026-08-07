@@ -699,6 +699,33 @@ void Keyboard_Process(KeyNumType& input)
     }
 
     /*
+    **	D-40: toggle the sidebar with TAB, handled HERE rather than where the
+    **	engine originally put it.
+    **
+    **	The stock handler lives in SidebarClass::AI (sidebar.cpp:868) and it does
+    **	not fire on Android. Verified rather than assumed: the controller sends
+    **	scancode 43 (KN_TAB) correctly and it was logged arriving ten times with
+    **	no effect, while GAME_GLYPHX_MULTIPLAYER and AllowAttract - the only two
+    **	early-outs on that path - are both false here.
+    **
+    **	The difference is which of the engine's TWO key paths a binding sits on.
+    **	Keyboard_Process gets its key straight from the buffer and every key
+    **	routed through it works. SidebarClass::AI is reached from
+    **	GScreenClass::Input, which sources its key from Buttons->Input() whenever
+    **	a gadget list is active - and during a mission the sidebar strips
+    **	register their buttons into exactly that list. Keys handed to the AI
+    **	chain are therefore at the mercy of the gadget layer; keys handled here
+    **	are not.
+    **
+    **	So this is not new behaviour. It is the engine's own TAB binding, moved
+    **	onto the path that demonstrably works, calling the same Activate(-1).
+    */
+    if (key != 0 && key == KN_TAB) {
+        Map.SidebarClass::Activate(-1);
+        input = KN_NONE;
+    }
+
+    /*
     **	Scrolls the sidebar up one slot.
     */
     if (key != 0

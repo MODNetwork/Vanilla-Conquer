@@ -925,3 +925,78 @@ before. One number, retuned on request.
 **Build note, not a code note.** A gradle invocation was killed by a tool timeout and left
 ninja's deps log locked, failing the next build with `Permission denied`. Cleared with
 `gradlew --stop`. No source or build configuration was involved and nothing was deleted.
+
+
+---
+
+## D-37 / D-38 - A resolves to whichever navigation was used last
+
+**Michael's finding, and his diagnosis was correct.** *"I think it is 2 issues from one
+bug"* - A would not activate what the D-pad had highlighted, on the main menu or in the
+sidebar, and only ever worked with the cursor.
+
+**Evidence before theory.** The D-36 diagnostic settled it in one read. Every press
+arrived with the right scancode and the right context:
+
+```
+CONTROLLER: button 13 -> scancode 80 (in_game=no)     D-pad left -> LEFT arrow
+CONTROLLER: button 11 -> scancode 82 (in_game=yes)    D-pad up   -> UP arrow
+CONTROLLER: button 0  -> mousebtn 1  (in_game=no)     A          -> left click
+```
+
+That eliminated the mapping and the delivery path, leaving only "the engine received it
+and did not act". `menus.cpp:246` then gave the reason:
+
+```cpp
+tempy = Get_Mouse_Y();
+if (Coordinates_In_Region(Get_Mouse_X(), tempy, mx1, my1, mx2, my2) && MenuUpdate) {
+    newitem = (tempy - my1) / menuskip;
+}
+```
+
+The menu highlight is **overwritten by the cursor's row every frame**. The D-pad moves a
+keyboard highlight; a click acts on whatever is under the cursor. Two unrelated systems,
+so A could never activate the highlight no matter where it sat. One bug, two symptoms,
+exactly as Michael called it.
+
+**First attempt (D-37) was too blunt.** Making A send `KN_RETURN` outside gameplay fixed
+the highlight case but cost the pointer case - and the pointer case is how the GDI/NOD
+choice screen and every gadget dialog are operated. Michael caught that immediately and
+asked for both.
+
+**D-38: A follows the player's last navigation.** The platform layer cannot see the
+engine's gadget list, so it cannot know what sits under the cursor. It does not need to.
+It knows which control the player last used:
+
+| Last action | A means |
+|---|---|
+| Left stick moved the cursor | left click |
+| Screen tapped | left click |
+| D-pad pressed | Return - confirm the highlight |
+| In a mission, always | left click |
+
+`LastNavWasDpad` is set by the four D-pad cases and cleared by
+`Process_Controller_Axis_Motion` and by a touch tap. It starts false, so a fresh menu
+behaves exactly as it did before this change - no regression on anything already passing.
+
+In a mission there is no keyboard highlight to confirm, so A is unconditionally a click
+there and the flag is ignored.
+
+**Why the touch reset matters.** Without it, using the D-pad and then tapping the screen
+would leave A confirming a stale highlight instead of clicking where the finger just put
+the cursor. One line, and it keeps the two input layers honest with each other.
+
+**B still carries an unconditional left click outside gameplay** as an explicit escape
+hatch, kept from D-37. It costs nothing and guarantees a real click is always one button
+away regardless of what the flag thinks.
+
+**Not fixed, and not a mapping problem.** `Fetch_Difficulty()` (`special.cpp:314`) builds
+a `SliderClass`. No gadget anywhere in this engine handles arrow keys, so difficulty was
+never keyboard-drivable - not in this port, not in the original. D-pad left/right cannot
+reach it by remapping. The working route is the stick onto the slider plus a click.
+Changing that means adding keyboard focus to gadget code, which is engine logic rather
+than platform layer, and has not been done without Michael's ruling.
+
+**Same structural fact for the sidebar.** Its build icons are mouse-only gadgets with no
+keyboard selection anywhere in the engine, and the sidebar cannot be opened or closed
+because it is permanently on screen in both titles. The D-pad can only scroll it.

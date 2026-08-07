@@ -250,6 +250,13 @@ void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger
             Get_Video_Mouse_Game(gx, gy);
             Put_Mouse_Message(VK_LBUTTON, gx, gy, false);
             Put_Mouse_Message(VK_LBUTTON, gx, gy, true);
+            /*
+            ** D-38: a tap moves the cursor, so it counts as pointer navigation.
+            ** Without this, using the D-pad and then tapping the screen would
+            ** leave A confirming a stale highlight instead of clicking where
+            ** the finger just put the cursor.
+            */
+            LastNavWasDpad = false;
             DBG_INFO("TOUCH: TAP at %d,%d", gx, gy);
             break;
 
@@ -564,6 +571,9 @@ void WWKeyboardClassSDL2::Process_Controller_Axis_Motion()
                      * Settings.Mouse.ControllerPointerSpeed / CONTROLLER_SPEED_MOD * ControllerSpeedBoost;
 
         Move_Video_Mouse(movX, movY);
+
+        // D-38: the player is driving the cursor, so A means "click here".
+        LastNavWasDpad = false;
     }
 }
 
@@ -710,12 +720,18 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
     ** is displaced.
     */
     case SDL_CONTROLLER_BUTTON_A:
-        if (in_game) {
+        if (in_game || !LastNavWasDpad) {
+            // In a mission there is no keyboard highlight to confirm, and
+            // outside one the player was last driving the cursor - either way
+            // A means "act on what is under the pointer". This is the GDI/NOD
+            // choice screen, and every button on every dialog.
             mousePress = true;
             key = VK_LBUTTON;
         } else {
+            // The player was last moving a highlight with the D-pad, so A
+            // confirms that highlight rather than clicking somewhere unrelated.
             keyboardPress = true;
-            scancode = SDL_SCANCODE_RETURN; // confirm the highlighted entry
+            scancode = SDL_SCANCODE_RETURN;
         }
         break;
     case SDL_CONTROLLER_BUTTON_B:
@@ -770,21 +786,26 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
     */
     case SDL_CONTROLLER_BUTTON_DPAD_UP:
         keyboardPress = true;
+        // D-38: the player is driving a highlight, so A now means "confirm it".
+        LastNavWasDpad = true;
         scancode = in_game ? SDL_SCANCODE_UP    // sidebar scroll up
                            : SDL_SCANCODE_UP;   // menu: move selection up
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
         keyboardPress = true;
+        LastNavWasDpad = true;
         scancode = in_game ? SDL_SCANCODE_DOWN  // sidebar scroll down
                            : SDL_SCANCODE_DOWN; // menu: move selection down
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
         keyboardPress = true;
+        LastNavWasDpad = true;
         scancode = in_game ? SDL_SCANCODE_1     // team 1
                            : SDL_SCANCODE_LEFT; // menu: difficulty, sliders
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
         keyboardPress = true;
+        LastNavWasDpad = true;
         scancode = in_game ? SDL_SCANCODE_2      // team 2
                            : SDL_SCANCODE_RIGHT; // menu: difficulty, sliders
         break;

@@ -50,6 +50,14 @@ private:
     float ControllerSpeedBoost = 1;
     // D-35: latched state of the left trigger, read as Ctrl.
     bool LeftTriggerHeld = false;
+    /*
+    ** D-38: which navigation the player last used outside gameplay. The D-pad
+    ** drives a keyboard highlight and the stick drives a cursor; these are
+    ** separate systems and A has to resolve to one of them. Rather than guess,
+    ** it follows whichever the player touched last. Stick or a screen tap means
+    ** A clicks; D-pad means A confirms the highlight.
+    */
+    bool LastNavWasDpad = false;
     bool AnalogScrollActive = false;
     ScrollDirType ScrollDirection = SDIR_NONE;
 

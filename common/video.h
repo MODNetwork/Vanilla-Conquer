@@ -94,6 +94,12 @@ void Set_Video_Mouse_Absolute(int win_x, int win_y);
 */
 void Get_Video_Mouse_Game(int& x, int& y);
 /*
+** D-41: open or close OUR command bar overlay - the shortcut panel this
+** project adds, NOT the game's own build sidebar. Two separate things, two
+** separate buttons: D-pad left drives this, D-pad right drives the game's.
+*/
+void Toggle_Command_Bar();
+/*
 ** Place the cursor from a normalised (0..1) touch position, as carried by
 ** SDL_TouchFingerEvent. This is the primitive Phase 5 gestures build on.
 */

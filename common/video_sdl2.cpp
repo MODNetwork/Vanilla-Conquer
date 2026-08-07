@@ -565,6 +565,41 @@ static void Notify_Java_In_Game(bool in_game)
     // look identical on screen. This makes the transition observable.
     DBG_INFO("CommandBar: in-game = %s", in_game ? "true" : "false");
 }
+
+/*
+** D-41: open or close OUR command bar - the overlay this project adds, not the
+** game's own build sidebar. Those are two different things and they now sit on
+** two different buttons, because conflating them cost several test rounds.
+**
+** Same JNI shape as Notify_Java_In_Game above, including the exception
+** clearing: a pending JNI exception aborts the NEXT call made from this thread,
+** so leaving one set would take the game down over an overlay toggle.
+*/
+void Toggle_Command_Bar()
+{
+    JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+    if (env == nullptr) {
+        return;
+    }
+
+    jclass cls = env->FindClass("dev/pricharda/commandpost/CommandPostActivity");
+    if (cls == nullptr) {
+        env->ExceptionClear();
+        return;
+    }
+
+    jmethodID mid = env->GetStaticMethodID(cls, "nativeToggleCommandBar", "()V");
+    if (mid == nullptr) {
+        env->ExceptionClear();
+        env->DeleteLocalRef(cls);
+        return;
+    }
+
+    env->CallStaticVoidMethod(cls, mid);
+    env->DeleteLocalRef(cls);
+
+    DBG_INFO("CommandBar: toggle requested from controller.");
+}
 #endif
 
 void Set_Video_Cursor_Clip(bool clipped)

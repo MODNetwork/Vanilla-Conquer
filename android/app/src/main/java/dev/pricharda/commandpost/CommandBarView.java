@@ -174,13 +174,29 @@ public class CommandBarView extends LinearLayout {
         t.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                expanded = !expanded;
-                panel.setVisibility(expanded ? VISIBLE : GONE);
-                t.setText(expanded ? "◂" : "▸");
+                togglePanel();
             }
         });
 
         return t;
+    }
+
+    /**
+     * D-41: open or close the command panel.
+     *
+     * Extracted from the tab's click listener so the tab and the controller
+     * drive the SAME code rather than two copies that can drift apart. D-pad
+     * left reaches this through CommandPostActivity.nativeToggleCommandBar.
+     *
+     * Must run on the UI thread - the controller path arrives on the SDL
+     * thread and posts across, which is the activity's job, not this view's.
+     */
+    public void togglePanel() {
+        expanded = !expanded;
+        panel.setVisibility(expanded ? VISIBLE : GONE);
+        if (tab != null) {
+            tab.setText(expanded ? "◂" : "▸");
+        }
     }
 
     private LinearLayout buildPanel(Context ctx) {

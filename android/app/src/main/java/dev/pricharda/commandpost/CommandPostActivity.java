@@ -71,6 +71,31 @@ public class CommandPostActivity extends SDLActivity {
     }
 
     /**
+     * D-41. Called from common/video_sdl2.cpp when D-pad left is pressed on a
+     * controller, to open or close OUR command bar - the overlay built in this
+     * project, not the game's own build sidebar. The two are separate things
+     * on separate buttons.
+     *
+     * Same threading rule as nativeSetInGame: this arrives on the SDL thread
+     * and every View touch is posted to the UI thread.
+     */
+    public static void nativeToggleCommandBar() {
+        final CommandPostActivity self = sInstance;
+        if (self == null) {
+            return;
+        }
+
+        self.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (self.commandBar != null) {
+                    self.commandBar.togglePanel();
+                }
+            }
+        });
+    }
+
+    /**
      * Which engine this activity was asked to load.
      *
      * Whitelisted rather than trusted: an unrecognised value would otherwise

@@ -797,17 +797,45 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
         scancode = in_game ? SDL_SCANCODE_DOWN  // sidebar scroll down
                            : SDL_SCANCODE_DOWN; // menu: move selection down
         break;
+    /*
+    ** D-41: the two sidebars, on two clearly separate buttons.
+    **
+    ** LEFT  = OUR command bar - the shortcut overlay this project adds.
+    ** RIGHT = the GAME's build sidebar.
+    **
+    ** These were conflated for several rounds because both get called "the
+    ** sidebar". They are unrelated: ours is an Android View drawn on top of
+    ** the SDL surface and is toggled over JNI; the game's lives inside the
+    ** engine and is toggled by KN_TAB. Nothing about one reaches the other.
+    */
     case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
-        keyboardPress = true;
         LastNavWasDpad = true;
-        scancode = in_game ? SDL_SCANCODE_1     // team 1
-                           : SDL_SCANCODE_LEFT; // menu: difficulty, sliders
+        if (in_game) {
+#ifdef __ANDROID__
+            /*
+            ** Not a key at all - a direct call across to the Java overlay.
+            **
+            ** PRESS only. This handler runs for both press and release, and an
+            ** unguarded toggle would fire twice per button press: open on the
+            ** way down, shut on the way up, leaving the panel exactly as it
+            ** was and looking like the button did nothing. Key bindings do not
+            ** have this problem because Put_Key_Message carries the release
+            ** bit and the engine ignores the release.
+            */
+            if (button.state == SDL_PRESSED) {
+                Toggle_Command_Bar();
+            }
+#endif
+        } else {
+            keyboardPress = true;
+            scancode = SDL_SCANCODE_LEFT; // menu: difficulty, sliders
+        }
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
         keyboardPress = true;
         LastNavWasDpad = true;
-        scancode = in_game ? SDL_SCANCODE_2      // team 2
-                           : SDL_SCANCODE_RIGHT; // menu: difficulty, sliders
+        scancode = in_game ? SDL_SCANCODE_TAB     // game's build sidebar
+                           : SDL_SCANCODE_RIGHT;  // menu: difficulty, sliders
         break;
     default:
         break;

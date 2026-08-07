@@ -1018,3 +1018,67 @@ GPU 57 °C, BIG 62 °C, LITTLE 60 °C.
 was on its main menu doing nothing. `Video.FrameLimit = 120` means the engine renders 120 fps at a
 static menu, which would be wasteful on battery. That is a **hypothesis from two idle samples, not
 a finding**, and it will be measured before anything is changed.
+
+
+---
+
+## F-16 - A compile-time default is silently defeated by a persisted setting
+
+**Symptom.** Controller support was enabled by changing `Mouse.ControllerEnabled` to
+`true` in the `SettingsClass` constructor for Android. The build succeeded, the APK
+installed, the Nacon was paired and reported by `dumpsys input` as a GAMEPAD - and
+`Open_Controller()` never ran. No controller line appeared in the log at all.
+
+**Root cause.** `SettingsClass::Load` reads the value straight back out of the on-device
+INI:
+
+```
+Mouse.ControllerEnabled = ini.Get_Bool("Mouse", "ControllerEnabled", Mouse.ControllerEnabled);
+```
+
+`Save()` had already written `ControllerEnabled=no` into
+`files/vanillatd/conquer.ini` during earlier sessions, from the OLD default. The
+constructor set the new default, `Load` immediately overwrote it with the stale one,
+`SDL_INIT_GAMECONTROLLER` never ran, and not one controller event was ever delivered.
+
+**Why this one was dangerous.** It fails silently and it fails *asymmetrically*: a fresh
+install would have worked and an upgrade would not. Testing on a clean device would have
+shown a pass. Every install that had ever run the app before was broken, and nothing in
+the build, the install, or the Android input layer gave any sign of it - the pad sits
+there paired and looking perfect.
+
+**Fix.** Force the value on Android AFTER the INI read, so a stale file cannot win.
+Editing the INI on the one device would have fixed the one device and left the actual
+defect in place for every other install, including ones not yet made - a textbook
+route-around rather than a fix. Nothing is given up by forcing it: with no pad attached
+the gamepad subsystem costs one init call and `Is_Gamepad_Active()` stays false.
+
+**Prevention rule.** When changing a default for a setting that is persisted, changing the
+default is not the change. Find the load path and decide explicitly what happens to
+existing saved values, then verify on a device that has run the previous build - never on
+a clean one.
+
+---
+
+## F-17 - Reading a log without first sizing the buffer (repeat of F-11)
+
+**Symptom.** Three consecutive attempts to confirm the controller opened returned nothing,
+or returned one stray line, or matched `SatelliteController` because the filter pattern
+`ontroller` hit unrelated Android spam. Each empty result looked like evidence the code
+had not run.
+
+**Root cause.** Two separate handling errors, both already on record as F-11:
+
+1. The device writes enough log volume that the app's early startup lines were pushed out
+   of the default ring buffer before `logcat -d` could read them. An empty result was read
+   as "the code did not run" when it meant "the line has already scrolled away."
+2. `am start` against an already-running instance delivers the intent to the live process
+   and prints `Warning: Activity not started` rather than restarting. The startup lines
+   being looked for had been emitted minutes earlier and were long gone.
+
+**Fix.** `adb logcat -G 16M` to grow the buffer, filter at source with `-s VCTD` rather
+than grepping a full dump, and `force-stop` with the pid confirmed empty before relaunch.
+
+**Prevention rule.** An absent log line is never evidence on its own. Before drawing any
+conclusion from silence, prove the capture path works by finding a line that is known to
+be there. F-11 established this and it was not applied.

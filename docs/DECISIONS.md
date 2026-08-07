@@ -769,3 +769,94 @@ handling, which is scope nobody has asked for.
 
 **All three titles are now content-complete** for what the engines can reach from a single data
 directory each.
+
+
+---
+
+## D-35 - Physical controller support (Nacon MGX Pro), alongside touch
+
+**Michael's ask.** A second interface for his Nacon MGX Pro (NC7273), an Xbox-layout
+phone controller, with an explicit proposed mapping. His constraint, verbatim: *"this
+does not replace the touch gestures we created - this simply detects if the second
+interface layer is present and silently adapts."*
+
+**What was already there.** Almost all of it. Vanilla-Conquer ships a complete controller
+layer in `common/wwkeyboard_sdl2.cpp`: stick-to-cursor, analog 8-way map scroll, a
+trigger speed boost, a button-to-scancode switch, and hot-plug via
+`SDL_CONTROLLERDEVICEADDED`. This was a remap and an enable, not a build. Two of the
+engine's existing choices also **inverted** part of Michael's proposal, and he was told
+before anything changed: the left stick already drove the cursor and the right stick
+already scrolled the map, the opposite of his "LJ = click, RJ = mouse".
+
+**Coexistence, verified rather than assumed.** Touch arrives on `SDL_FINGER*`, controller
+on `SDL_CONTROLLER*`. Neither path is aware of the other and both stay live. They also
+share one cursor - `hwcursor` - so a tap places it and the stick nudges it from there.
+`Is_Gamepad_Active()` is the entire "detect and adapt" mechanism and it already existed.
+
+The one thing that could have broken touch was checked in source first:
+`Settings.Mouse.ControllerEnabled` also feeds `SDL_SetRelativeMouseMode`
+(`video_sdl2.cpp:584`). That call sits inside `if (Settings.Video.Windowed)`, and Android
+is never windowed (`video_sdl2.cpp:271` takes the whole screen unconditionally), so the
+branch is unreachable here. Enabling the flag cannot change mouse mode on Android.
+
+**The map.** Michael's layout was taken as ruled. Where a command he assigned over had no
+other route on a controller, it moved to an input that was sitting unused rather than
+being dropped.
+
+| Control | Function | Provenance |
+|---|---|---|
+| Left stick | cursor | engine, unchanged |
+| Right stick | map scroll | engine, unchanged |
+| RT | cursor speed boost | engine, unchanged |
+| A | left click | Michael |
+| X | scatter | Michael |
+| Y | guard | Michael |
+| START | Esc | Michael |
+| LB / RB | previous / next unit | Michael |
+| D-pad up | select all on screen | Michael |
+| L3 | centre on base | Michael's "B = base", moved |
+| B | **right click** | kept, at Michael's explicit approval |
+| LT | Ctrl - force fire, and team CREATE | rehomed |
+| R3 | Alt - force move, recall team | rehomed |
+| D-pad down | sidebar scroll down | closest real command |
+| BACK | sidebar scroll up | the one addition beyond spec |
+| D-pad left / right | teams 1 / 2 | remaining slots via the on-screen bar |
+
+**Why B stayed right-click.** `display.cpp:3345` makes it a five-way cancel - deselect,
+exit repair, exit sell, cancel placement, cancel targeting. Nothing else reaches any of
+it. This is the same function whose absence produced the stuck-selection bug Michael
+found on touch. Michael approved keeping it and "base" moved to L3.
+
+**Why Ctrl and Alt had to be rehomed.** Michael wanted LB/RB for prev/next; they were
+Ctrl and Alt. Ctrl is not a convenience - `Handle_Team` in `conquer.cpp` makes it the key
+that CREATES a team, so a controller without it could not build one at all.
+
+**Why the left trigger needs hysteresis.** LT is an analog axis, but Ctrl must be a HELD
+key: the engine reads modifiers through `Keyboard->Down()`, true only while the key sits
+in the down state. A single threshold would chatter the key on and off with the trigger
+resting against it, so press (16000) and release (8000) are separate.
+
+**"Open sidebar" does not exist.** Michael asked for D-pad down to open the sidebar. In
+both titles the sidebar is permanently on screen; `KeySidebarUp/Down` only scroll the
+build list, and they are the arrow keys. D-pad down scrolls down. BACK was given
+scroll-up because a scroll-down with no counterpart is half a control - flagged to
+Michael as the single place this went beyond his spec.
+
+**Scancodes were not re-derived.** They are the ones already proven by the on-screen
+command bar under Michael's smoke test. Both routes end at `Put_Key_Message`, and
+`wwkeyboard.h` shows the engine's `KN_` codes ARE the SDL scancodes (`KN_UP = VK_UP =
+SDL_SCANCODE_UP`), so no translation step exists to get wrong.
+
+**Diagnostics added, and why they stay.** `Open_Controller()` now names every joystick
+device and says whether SDL accepted it as a game controller. This is not a one-off probe:
+a pad Android reports happily can still be invisible to SDL, which only raises button
+events for devices it holds a mapping for. That failure is completely silent and looks
+identical to broken button code. One log line separates the two. Verified on device:
+
+```
+CONTROLLER: 2 joystick device(s) present at startup.
+CONTROLLER: opened 'Nacon MG-X PRO' as a game controller.
+CONTROLLER: 'Android Accelerometer' has no SDL mapping - its buttons cannot reach the game.
+```
+
+The accelerometer line is benign - Android exposes it as a joystick and it has no buttons.

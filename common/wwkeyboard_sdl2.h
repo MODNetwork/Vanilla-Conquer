@@ -30,7 +30,15 @@ private:
     {
         CONTROLLER_L_DEADZONE = 4000,
         CONTROLLER_R_DEADZONE = 6000,
-        CONTROLLER_TRIGGER_R_DEADZONE = 3000
+        CONTROLLER_TRIGGER_R_DEADZONE = 3000,
+        /*
+        ** D-35: the left trigger drives a HELD modifier key rather than a
+        ** one-shot, so it needs a press point and a separate, lower release
+        ** point. With a single threshold a trigger resting against it would
+        ** chatter Ctrl down and up many times a second.
+        */
+        CONTROLLER_TRIGGER_L_PRESS = 16000,
+        CONTROLLER_TRIGGER_L_RELEASE = 8000
     };
 
     SDL_GameController* GameController = nullptr;
@@ -40,6 +48,8 @@ private:
     int16_t ControllerRightYAxis = 0;
     uint32_t LastControllerTime = 0;
     float ControllerSpeedBoost = 1;
+    // D-35: latched state of the left trigger, read as Ctrl.
+    bool LeftTriggerHeld = false;
     bool AnalogScrollActive = false;
     ScrollDirType ScrollDirection = SDIR_NONE;
 

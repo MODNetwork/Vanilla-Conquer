@@ -484,6 +484,13 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
         case SDL_CONTROLLERDEVICEADDED:
             if (GameController == nullptr) {
                 GameController = SDL_GameControllerOpen(event.jdevice.which);
+                // D-35: this is the hot-plug path - a pad connected after the
+                // game was already running. Logged so a mid-session connect is
+                // distinguishable from a startup one.
+                DBG_INFO("CONTROLLER: hot-plugged '%s'.",
+                         GameController && SDL_GameControllerName(GameController)
+                             ? SDL_GameControllerName(GameController)
+                             : "unnamed");
             }
             break;
         case SDL_CONTROLLERAXISMOTION:
@@ -507,9 +514,28 @@ bool WWKeyboardClassSDL2::Is_Gamepad_Active()
 
 void WWKeyboardClassSDL2::Open_Controller()
 {
-    for (int i = 0; i < SDL_NumJoysticks(); ++i) {
+    const int count = SDL_NumJoysticks();
+    DBG_INFO("CONTROLLER: %d joystick device(s) present at startup.", count);
+
+    for (int i = 0; i < count; ++i) {
+        /*
+        ** D-35: the decisive line for diagnosing a dead pad. Android can report
+        ** a device as a GAMEPAD while SDL still refuses it, because SDL only
+        ** raises SDL_CONTROLLERBUTTON events for devices it holds a
+        ** game-controller MAPPING for. A pad with no mapping is silent no
+        ** matter how correct the button code is, and the fix in that case is a
+        ** mapping string - not anything in Handle_Controller_Button_Event.
+        ** Logging which of the two happened turns an hour of guessing into one
+        ** glance.
+        */
         if (SDL_IsGameController(i)) {
+            const char* name = SDL_GameControllerNameForIndex(i);
             GameController = SDL_GameControllerOpen(i);
+            DBG_INFO("CONTROLLER: opened '%s' as a game controller.", name ? name : "unnamed");
+        } else {
+            const char* name = SDL_JoystickNameForIndex(i);
+            DBG_WARN("CONTROLLER: '%s' has no SDL mapping - its buttons cannot reach the game.",
+                     name ? name : "unnamed");
         }
     }
 }
@@ -572,6 +598,24 @@ void WWKeyboardClassSDL2::Handle_Controller_Axis_Event(const SDL_ControllerAxisE
             ControllerSpeedBoost = 1 + (static_cast<float>(motion.value) / 32767) * CONTROLLER_TRIGGER_SPEEDUP;
         else
             ControllerSpeedBoost = 1;
+    } else if (motion.axis == SDL_CONTROLLER_AXIS_TRIGGERLEFT) {
+        /*
+        ** D-35: left trigger is Ctrl - force fire, and the key that CREATES a
+        ** team. It has to be HELD, not tapped: conquer.cpp reads the modifier
+        ** through Keyboard->Down(), which is only true while the key sits in
+        ** the down state, so a press/release pair around the real action is
+        ** the only thing the engine will accept.
+        **
+        ** Hysteresis, not a plain threshold - see the header. Only edges are
+        ** sent, so the key queue is not flooded while the trigger is held.
+        */
+        const bool held = LeftTriggerHeld ? (motion.value > CONTROLLER_TRIGGER_L_RELEASE)
+                                          : (motion.value > CONTROLLER_TRIGGER_L_PRESS);
+        if (held != LeftTriggerHeld) {
+            LeftTriggerHeld = held;
+            Put_Key_Message(SDL_SCANCODE_LCTRL, !held);
+            DBG_INFO("CONTROLLER: Ctrl %s", held ? "down" : "up");
+        }
     }
 
     if (ControllerRightXAxis != 0) {
@@ -602,6 +646,37 @@ void WWKeyboardClassSDL2::Handle_Controller_Axis_Event(const SDL_ControllerAxisE
     }
 }
 
+/***********************************************************************************************
+ * D-35: controller button map, ruled by Michael for the Nacon MGX Pro.
+ *
+ * THIS DOES NOT REPLACE TOUCH. Touch arrives on SDL_FINGER* events, controller
+ * on SDL_CONTROLLER*; neither path knows the other exists and both stay live.
+ * They also share one cursor - hwcursor - so a tap places it and the left stick
+ * nudges it from wherever the tap left it. Plug in, it works; unplug, touch is
+ * untouched. Is_Gamepad_Active() is the whole of the "detect and adapt".
+ *
+ * WHERE THIS DEPARTS FROM MICHAEL'S LAYOUT, and why. Two commands he assigned
+ * over had no other route on a controller, so they moved to inputs that were
+ * sitting unused rather than being dropped:
+ *
+ *   B stays RIGHT-CLICK, at his explicit approval. display.cpp:3345 makes it a
+ *   five-way cancel - deselect, exit repair, exit sell, cancel placement,
+ *   cancel targeting. Nothing else reaches any of it. "Base" moved to L3.
+ *
+ *   Ctrl and Alt came off LB/RB - which he wanted for prev/next - onto the left
+ *   trigger and R3. Ctrl is not optional: conquer.cpp Handle_Team makes it the
+ *   key that CREATES a team, so without it a controller could not build one at
+ *   all. Alt force-moves and recalls.
+ *
+ *   BACK is sidebar-scroll-UP. This is the one addition beyond his spec, and it
+ *   is flagged for his ruling: he asked for D-pad down to "open sidebar", but
+ *   the sidebar in both titles is permanently on screen and UP/DOWN only scroll
+ *   the build list. A scroll-down with no scroll-up is half a control.
+ *
+ * Scancodes are the ones already proven by the on-screen command bar, not
+ * re-derived. Both routes end at Put_Key_Message, and wwkeyboard.h shows the
+ * engine's KN_ codes ARE the SDL scancodes, so no translation can go wrong.
+ *=============================================================================*/
 void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerButtonEvent& button)
 {
     bool keyboardPress = false;
@@ -620,43 +695,51 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
         break;
     case SDL_CONTROLLER_BUTTON_X:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_G;
+        scancode = SDL_SCANCODE_X; // scatter
         break;
     case SDL_CONTROLLER_BUTTON_Y:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_F;
-        break;
-    case SDL_CONTROLLER_BUTTON_BACK:
-        keyboardPress = true;
-        scancode = SDL_SCANCODE_ESCAPE;
+        scancode = SDL_SCANCODE_G; // guard
         break;
     case SDL_CONTROLLER_BUTTON_START:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_RETURN;
+        scancode = SDL_SCANCODE_ESCAPE;
+        break;
+    case SDL_CONTROLLER_BUTTON_BACK:
+        keyboardPress = true;
+        scancode = SDL_SCANCODE_UP; // sidebar scroll up - Options.KeySidebarUp
         break;
     case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_LCTRL;
+        scancode = SDL_SCANCODE_B; // previous unit
         break;
     case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_LALT;
+        scancode = SDL_SCANCODE_N; // next unit
+        break;
+    case SDL_CONTROLLER_BUTTON_LEFTSTICK:
+        keyboardPress = true;
+        scancode = SDL_SCANCODE_H; // centre view on base
+        break;
+    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+        keyboardPress = true;
+        scancode = SDL_SCANCODE_LALT; // force move, and recall team
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_UP:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_1;
-        break;
-    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
-        keyboardPress = true;
-        scancode = SDL_SCANCODE_2;
+        scancode = SDL_SCANCODE_E; // select everything on screen
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_3;
+        scancode = SDL_SCANCODE_DOWN; // sidebar scroll down - Options.KeySidebarDown
         break;
     case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_4;
+        scancode = SDL_SCANCODE_1; // team 1
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+        keyboardPress = true;
+        scancode = SDL_SCANCODE_2; // team 2
         break;
     default:
         break;

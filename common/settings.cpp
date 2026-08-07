@@ -12,7 +12,25 @@ SettingsClass::SettingsClass()
     */
     Mouse.RawInput = true;
     Mouse.Sensitivity = 100;
+#ifdef __ANDROID__
+    /*
+    ** D-35: a phone controller is a plug-in accessory, so the gamepad subsystem
+    ** has to be up before one ever appears. This flag gates
+    ** SDL_Init(SDL_INIT_GAMECONTROLLER) in video_sdl2.cpp - left false, no
+    ** controller event of any kind is delivered, so nothing else in the
+    ** controller path can work.
+    **
+    ** Safe to force on, verified rather than assumed: the only other thing this
+    ** flag touches is SDL_SetRelativeMouseMode, and that call sits inside
+    ** "if (Settings.Video.Windowed)" (video_sdl2.cpp:581). Android is never
+    ** windowed - video_sdl2.cpp:271 takes the whole screen unconditionally - so
+    ** the branch that would change mouse mode is unreachable here. The touch
+    ** layer is untouched by this.
+    */
+    Mouse.ControllerEnabled = true;
+#else
     Mouse.ControllerEnabled = false;
+#endif
     Mouse.ControllerPointerSpeed = 10;
     Options.MouseWheelScrolling = true;
 
@@ -87,6 +105,29 @@ void SettingsClass::Load(INIClass& ini)
     Mouse.Sensitivity = ini.Get_Int("Mouse", "Sensitivity", Mouse.Sensitivity);
     Mouse.ControllerEnabled = ini.Get_Bool("Mouse", "ControllerEnabled", Mouse.ControllerEnabled);
     Mouse.ControllerPointerSpeed = ini.Get_Int("Mouse", "ControllerPointerSpeed", Mouse.ControllerPointerSpeed);
+#ifdef __ANDROID__
+    /*
+    ** D-35: hold this on regardless of what the INI says, and do it AFTER the
+    ** read so a stale file cannot win.
+    **
+    ** Changing only the constructor default was not enough and the failure was
+    ** silent. Every install that ran before this change already has
+    ** "ControllerEnabled=no" written into its conquer.ini / redalert.ini, put
+    ** there by Save() from the old default. Get_Bool then hands that stale "no"
+    ** straight back, Open_Controller is never called, SDL_INIT_GAMECONTROLLER
+    ** never runs, and not one controller event is delivered - while the pad
+    ** sits there paired and reported by Android, looking fine. A fresh install
+    ** would have worked and an upgrade would not.
+    **
+    ** Editing the file on one device would have fixed one device. This fixes
+    ** every device, including ones not yet installed.
+    **
+    ** Nothing is given up by forcing it. With no pad attached the gamepad
+    ** subsystem costs an init call and Is_Gamepad_Active() stays false, so the
+    ** touch path behaves exactly as it did before.
+    */
+    Mouse.ControllerEnabled = true;
+#endif
     /*
     ** Compatibility with CNCNet configuration for this feature
     */

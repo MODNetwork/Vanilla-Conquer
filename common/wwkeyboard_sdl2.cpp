@@ -689,13 +689,40 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
     const bool in_game = Get_Video_Cursor_Clip();
 
     switch (button.button) {
+    /*
+    ** D-37: A confirms, it does not click - outside gameplay.
+    **
+    ** Michael found this and diagnosed it correctly as one bug behind two
+    ** symptoms. The D-pad moves a KEYBOARD highlight; a mouse click acts on
+    ** whatever is under the CURSOR. Those are two unrelated systems, so A could
+    ** never activate what the D-pad had highlighted, no matter where the
+    ** highlight sat.
+    **
+    ** menus.cpp:246 is worth knowing about here: when the cursor is inside the
+    ** menu's own region the engine overwrites the keyboard highlight with the
+    ** cursor's row every frame. So sending KN_RETURN does not cost the pointer
+    ** workflow on a menu list - park the cursor over an entry and the highlight
+    ** follows it, then A confirms that same entry. Both routes converge.
+    **
+    ** For gadget dialogs, where Return only fires the default button, B carries
+    ** a real left click so a specific button or slider is still reachable with
+    ** the stick. B's right-click has no meaning outside a mission, so nothing
+    ** is displaced.
+    */
     case SDL_CONTROLLER_BUTTON_A:
-        mousePress = true;
-        key = VK_LBUTTON;
+        if (in_game) {
+            mousePress = true;
+            key = VK_LBUTTON;
+        } else {
+            keyboardPress = true;
+            scancode = SDL_SCANCODE_RETURN; // confirm the highlighted entry
+        }
         break;
     case SDL_CONTROLLER_BUTTON_B:
         mousePress = true;
-        key = VK_RBUTTON;
+        // In a mission this is the five-way cancel chain. Outside one there is
+        // nothing for a right click to do, so it becomes the pointer click.
+        key = in_game ? VK_RBUTTON : VK_LBUTTON;
         break;
     case SDL_CONTROLLER_BUTTON_X:
         keyboardPress = true;
@@ -775,11 +802,25 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
     ** tell us nothing extra.
     */
     if (button.state == SDL_PRESSED) {
-        DBG_INFO("CONTROLLER: button %d -> %s %d (in_game=%s)",
-                 button.button,
-                 keyboardPress ? "scancode" : (mousePress ? "mousebtn" : "UNMAPPED"),
-                 keyboardPress ? (int)scancode : (mousePress ? (int)key : -1),
-                 in_game ? "yes" : "no");
+        /*
+        ** D-37: mouse presses now report WHERE they landed, in game
+        ** coordinates. "The sidebar does not respond" and "the cursor was not
+        ** on the sidebar" look identical from the outside and need completely
+        ** different fixes. In Tiberian Dawn's 640x400 the tactical map ends and
+        ** the sidebar begins around x=480, so the number alone answers it.
+        */
+        if (mousePress) {
+            int lx, ly;
+            Get_Video_Mouse(lx, ly);
+            DBG_INFO("CONTROLLER: button %d -> mousebtn %d at %d,%d (in_game=%s)",
+                     button.button, (int)key, lx, ly, in_game ? "yes" : "no");
+        } else {
+            DBG_INFO("CONTROLLER: button %d -> %s %d (in_game=%s)",
+                     button.button,
+                     keyboardPress ? "scancode" : "UNMAPPED",
+                     keyboardPress ? (int)scancode : -1,
+                     in_game ? "yes" : "no");
+        }
     }
 
     if (keyboardPress) {

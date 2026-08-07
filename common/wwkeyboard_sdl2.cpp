@@ -752,32 +752,9 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
         keyboardPress = true;
         scancode = SDL_SCANCODE_ESCAPE;
         break;
-    /*
-    ** D-39: BACK toggles the sidebar. Michael asked for exactly this three
-    ** times and was told twice it was impossible because the sidebar was
-    ** "permanently on screen". That was wrong, and reading the source rather
-    ** than repeating the claim settled it:
-    **
-    **   tiberiandawn/sidebar.cpp:868   if (input == KN_TAB) { Activate(-1); }
-    **   tiberiandawn/tab.cpp:247       Map.SidebarClass::Activate(-1);
-    **
-    ** TAB is a built-in hotkey in Tiberian Dawn - no engine change needed, this
-    ** is a pure mapping like everything else here. The wrong belief came from
-    ** Red Alert, which really does force the sidebar on:
-    **
-    **   redalert/sidebar.cpp:826  if (Options.ToggleSidebar) { ...TAB... }
-    **                             else { Activate(1); }  // always on
-    **
-    ** So this toggles in TD and is harmlessly inert in RA unless ToggleSidebar
-    ** is enabled. One binding, correct in both titles.
-    **
-    ** Select-all gave up this button. It is the cheapest thing on the pad to
-    ** lose - the on-screen command bar still carries ALL - and a sidebar you
-    ** cannot reopen makes the controller unusable for building.
-    */
     case SDL_CONTROLLER_BUTTON_BACK:
         keyboardPress = true;
-        scancode = SDL_SCANCODE_TAB; // toggle the sidebar in and out
+        scancode = SDL_SCANCODE_E; // select everything on screen
         break;
     case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
         keyboardPress = true;

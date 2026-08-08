@@ -46,8 +46,12 @@ android {
         applicationId "dev.pricharda.commandpost"
         minSdkVersion 21
         targetSdkVersion 34
-        versionCode 1
-        versionName "0.1-gate2"
+        // D-43: first real release. versionCode must increment on EVERY future
+        // upload - Android rejects a build whose code is not higher than the
+        // one already installed or published, and it is not derived from
+        // versionName, so bumping only the name silently breaks updates.
+        versionCode 2
+        versionName "1.0"
 
         externalNativeBuild {
             cmake {

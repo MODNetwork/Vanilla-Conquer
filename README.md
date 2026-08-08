@@ -164,6 +164,19 @@ Android/data/dev.pricharda.commandpost/files/vanillara/     Red Alert
 
 Expansions go in the same directory as their parent title.
 
+**Copy the files with the phone plugged in as a media device, or from a file manager on the
+phone itself.** Do not place them with `adb shell cp` from another location on the device:
+files created that way are owned by the shell user, the app cannot read them through scoped
+storage, and the engine crashes on the first missing file rather than reporting it. If that
+happens, the fix is `chmod 777` on the two title directories and `chmod 666` on their
+contents - or simply recopy them properly.
+
+**Reinstalling deletes your game data.** Android removes
+`Android/data/dev.pricharda.commandpost` on uninstall, and switching between a debug and a
+release build requires an uninstall because they are signed with different keys. Back the
+directory up first if you do not want to copy 950 MB again. Saves live in the app's private
+storage and cannot be recovered once uninstalled.
+
 ---
 
 ## Attribution and licensing

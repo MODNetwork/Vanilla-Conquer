@@ -1140,3 +1140,63 @@ the source, and it is corrected here.
 was reported to Michael as "opens but does not close" when the build was in fact correct.
 He had to override that with his own observation. Screenshots of a live game are a lagging
 indicator; his gate report outranks them.
+
+
+---
+
+## F-20 - Broke the game data, then diagnosed the breakage as a code defect
+
+**Symptom.** The signed release APK crashed roughly half a second after launch, twice, with
+a native abort:
+
+```
+FORTIFY: pthread_mutex_lock called on a destroyed mutex
+Pointer tag for 0x5 was truncated
+Fatal signal 6 (SIGABRT) ... tid (RenderThread) / tid (InsetsAnimation)
+```
+
+This was reported to Michael as a real, newly-found native lifetime bug that was "latent in
+debug and fatal in release, because release turns on optimisation and Android's memory
+hardening." That reading was wrong.
+
+**Root cause.** Uninstalling to switch signing keys deletes
+`/storage/emulated/0/Android/data/<pkg>`, so the 951 MB of game data had to be restored. It
+was restored with `adb shell cp -r` from a backup elsewhere on the device. Files created
+that way are owned by `shell`, not by the app, and scoped storage then denies the app access
+to its own data directory. The engine could not open a single `.MIX`, got a null handle back,
+and dereferenced it.
+
+The proof came only after reinstalling the debug build to give Michael something working:
+**it crashed too**, with `SIGSEGV, fault addr 0x0, Cause: null pointer dereference` in
+`SDLThread`. A build known to work minutes earlier failed identically. That is the signal
+that the environment changed, not the code.
+
+**Fix.** `chmod 777` on the two title directories and `chmod 666` on their contents. Both
+builds then ran normally. The release APK is stable - verified alive across 32 seconds with
+an empty crash buffer.
+
+**Two false conclusions were published to Michael before the evidence supported them:**
+
+1. That the release build had a native mutex bug. It does not.
+2. That release-only optimisation and memory hardening explained the difference. They did
+   not; the difference was the data I had just replaced.
+
+The "release-only" framing was seductive precisely because the debug build *had* worked and
+the release build did not - but the data restore sat between those two observations and was
+never treated as a variable. Section 3.3 requires one variable per attempt; the install and
+the data restore were changed together and the result was attributed entirely to the install.
+
+**Also mis-read along the way:** the absence of `VCTD` log lines from the release build was
+taken as "the engine never started." `DBG_INFO` is compiled out of release builds. Silence
+in a release log means nothing - the same F-11/F-17 mistake in a third costume.
+
+**Prevention rules.**
+
+1. Never restore an Android app's external data with `adb shell cp`. Use a transfer that
+   yields app ownership, or fix the mode afterwards, and always verify the app can read it
+   before drawing conclusions about anything else.
+2. When a build that worked starts failing, list what changed in the *environment* before
+   theorising about the binary. The binary is rarely the thing that changed most recently.
+3. A crash signature that looks sophisticated - destroyed mutex, tagged pointers, memory
+   hardening - is not evidence of a sophisticated cause. It is what a null file handle looks
+   like after it has propagated.

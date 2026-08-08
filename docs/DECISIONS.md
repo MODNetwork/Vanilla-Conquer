@@ -1000,3 +1000,45 @@ than platform layer, and has not been done without Michael's ruling.
 **Same structural fact for the sidebar.** Its build icons are mouse-only gadgets with no
 keyboard selection anywhere in the engine, and the sidebar cannot be opened or closed
 because it is permanently on screen in both titles. The D-pad can only scroll it.
+
+
+---
+
+## D-43 - Version 1.0, signed release installed, PASSED
+
+**Michael's gate report, verbatim:** *"confirm PASS - it plays like we built it"*, on the
+signed release build running on his Pixel 9 Pro Fold.
+
+That is the first PASS on a **release** artifact in this project. Everything before it was
+gated on debug builds.
+
+**What was verified, not assumed:**
+
+| Property | Evidence |
+|---|---|
+| Signed by Michael's key | `apksigner verify --print-certs` -> `CN=Michael Pricharda` |
+| Not a debug-signed fake | `debuggable` set only on the debug build type |
+| Version | `versionCode=2 versionName=1.0` read back from `dumpsys package` |
+| Complete | Both engines, SDL2, OpenAL, `License.txt`, `THIRD-PARTY-LICENSES.txt` inside the APK |
+| Stable | Process alive across 32 seconds, crash buffer empty |
+| Plays | Michael's own gate report |
+
+**versionCode was bumped to 2, deliberately.** Android will not install a build whose
+versionCode is not higher than the one already present, and it is not derived from
+versionName - bumping only the name silently breaks every future update. It must increment
+on every upload from here.
+
+**Cleanup performed and reported.** The 951 MB on-device backup at `/sdcard/cp_backup` was
+deleted at Michael's instruction, after confirming the live data directory was intact and
+playable. 165 GB free afterwards, up from 166 GB used. The save files remain on the PC at
+`C:\DEV\_cnc-backup` (8 files, 169 KB) - they cannot be restored into a non-debuggable
+release build, and are kept only as insurance if a save-import path is ever added.
+
+**Known limitations carried forward, none of them regressions:**
+
+- The difficulty control is a `SliderClass`, a mouse-only widget. No widget in this engine
+  responds to arrow keys, so the D-pad cannot drive it. Cursor plus click works.
+- Covert Operations cutscenes and music are absent - CD3 ships `MOVIES.MIX` and `SCORES.MIX`
+  that collide by filename with Tiberian Dawn's. The missions are playable.
+- Saves do not survive an uninstall, which is required to move between debug and release
+  builds because they are signed with different keys.

@@ -1165,3 +1165,85 @@ no branch left in which the old behaviour can occur.
 **Where this actually matters.** Michael cannot easily observe the difference any more — his
 config now records `PlayIntro=false`, so he would reach the main menu either way. This fix is
 for everybody else's first launch, which is precisely the scenario a store listing creates.
+
+
+---
+
+## D-46 - Audit, sweep, and close-out state
+
+Michael asked for a debug audit and sweep before calling the work complete. This records the
+final state so the next person - including a future session with no memory of this one - can
+verify it rather than trust it.
+
+### Code audit
+
+Seven per-input probes retired from the platform layer and one from the engine. Each fired on
+routine gameplay input and each existed to answer a question that has since been gated:
+
+| Probe | Fired on | Question, now answered |
+|---|---|---|
+| `KP: input=...` | every keypress | Do command bar keys arrive? D-31 passed |
+| `KEY: scancode=...` | every keypress | Same audit |
+| `TOUCHDBG motion` | every motion event | Touch arrives as synthesised relative motion |
+| `TOUCHMAP win->game` | every touch | Coordinate mapping, correct through every gate |
+| `TOUCH: PAN active` | twice a second while panning | Platform vs engine scroll limit |
+| `CONTROLLER: button` | every button press | Mapping correct; closed by D-42 |
+| `CONTROLLER: Ctrl` | every trigger edge | Hysteresis works |
+
+`Log_Pan_State()` and `PanFrameCount` were removed entirely, existing only to feed one of them.
+
+**Kept:** startup diagnostics, gesture state transitions, screen-transition notices, and every
+`DBG_WARN` / `DBG_ERROR`. These fire once per launch or per rare event. The
+controller-recognition line alone settled the first controller gate and would settle it again
+for anyone with a different pad.
+
+**Why this was worth doing, in one sentence:** log volume pushed real evidence out of the ring
+buffer three times in this project (F-11, F-17, F-20), and each occurrence cost Michael a round
+trip. In release builds these were compiled out, so the benefit is debuggability, not speed.
+
+The two heaviest probes are commented in place rather than deleted silently, because each
+encodes a non-obvious trap - the comparison-basis disagreement in `Keyboard_Process`, and the
+click-position field that distinguishes "the control ignored me" from "the cursor was not on
+it."
+
+### Sweep
+
+| Removed | Count | Size |
+|---|---|---|
+| Logcat dumps and diagnostic screenshots | 14 | 12.0 MB |
+| One-off numbered build probes (`01-` … `92-`) | 25 | 15 KB |
+| On-device game data backup (`/sdcard/cp_backup`) | — | 951 MB |
+
+**Kept deliberately:** reusable tooling (`_adb.cmd` and its escalating reconnect, `deploy.cmd`,
+`lifecycle.cmd`, `perf.ps1`, `audio.cmd`, `aspect.cmd`, `pan.cmd`, `make-assets.ps1`), gate
+evidence records (`gate2_pass.txt`, `gate2_evidence.txt`, `gate3.txt`), and the two registry
+backups (`PATH-BACKUP-HKCU.reg`, `PATH-BACKUP-HKLM.reg`) - rollback material is never swept.
+
+Before deleting the numbered scripts, the retained tooling was checked for references to them.
+None existed. Deleting a script another script calls would have broken working tooling silently.
+
+**One device change not reverted:** the logcat ring buffer was raised to 16 MB. It resets on
+reboot, costs nothing, and is useful if this is ever debugged again. Flagged rather than
+silently left.
+
+### Verified close-out state
+
+| | |
+|---|---|
+| Repo | `MODNetwork/Vanilla-Conquer`, branch `vanilla`, head `26c9d41` |
+| Unpushed commits | 0 |
+| Working tree | clean |
+| Game files tracked | **0** — asset wall holding |
+| Installed build | 1.0, versionCode 2, signed `CN=Michael Pricharda`, not debuggable |
+| Runtime | engine process alive, crash buffer empty |
+| Game data | 951 MB present and readable |
+| Stray backups on device | none |
+
+### Open, by choice rather than oversight
+
+- Store screenshots — needs the device unfolded and free
+- App Bundle (`.aab`) — Play requires it for new apps; the APK is correct for sideloading
+- The publishing decision itself, and the unresolved Q1 in `COUNSEL-BRIEFING.md`
+- Difficulty slider is a mouse-only widget; cursor plus click works
+- Covert Operations cutscenes absent - CD3 filenames collide with Tiberian Dawn's
+- Saves do not survive the uninstall required to switch signing keys

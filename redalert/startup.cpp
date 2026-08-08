@@ -453,7 +453,23 @@ int main(int argc, char* argv[])
         **	configuration file says "no", then don't run the intro.
         */
         if (!Special.IsFromInstall) {
+#ifdef __ANDROID__
+            /*
+            **	D-45: never take the first-run path on Android. See the matching
+            **	block in tiberiandawn/startup.cpp for the full reasoning.
+            **
+            **	Red Alert is where this actually bit. With the flag set,
+            **	init.cpp:603 forces SEL_START_NEW_GAME so the main menu never
+            **	appears, init.cpp:717 forces Normal difficulty instead of asking,
+            **	and init.cpp:753 skips the Allied/Soviet prompt entirely - the
+            **	side then falls out of CurrentCD, which Choose_Side leaves at 1
+            **	if its movie is skipped. The result is Soviet mission one with no
+            **	menu, no difficulty and no side choice.
+            */
+            Special.IsFromInstall = false;
+#else
             Special.IsFromInstall = ini.Get_Bool("Intro", "PlayIntro", true);
+#endif
         }
         SlowPalette = ini.Get_Bool("Options", "SlowPalette", false);
 

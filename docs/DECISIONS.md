@@ -1112,3 +1112,56 @@ away for convenience; it is the foundation everything else in `COUNSEL-BRIEFING.
 against a real working install of both titles. The dialog itself has **not** been seen on
 device - Michael's phone was locked and unlocking it was not mine to do. Unverified until he
 gates it.
+
+
+---
+
+## D-45 - First launch always reaches the main menu
+
+**Michael's report:** launching Red Alert went straight into Soviet mission one instead of the
+main menu, with no difficulty prompt and no side choice. He asked whether the two-finger
+Escape gesture was buggy.
+
+**It was not the gesture.** The gesture is correct - `TwoFingerFired` guarantees one Escape per
+tap and holds the state until every finger lifts, so a trailing finger cannot re-fire it. The
+cause is a first-run flag in the original game, and the diagnosis is entirely from source:
+
+| Location | Effect when `Special.IsFromInstall` is true |
+|---|---|
+| `redalert/startup.cpp:456` | Reads `[Intro] PlayIntro` from the config, **defaulting to true when the file is absent** |
+| `redalert/init.cpp:603` | Forces `selection = SEL_START_NEW_GAME` — the main menu never appears |
+| `redalert/init.cpp:717` | Forces Normal difficulty instead of calling `Fetch_Difficulty()` |
+| `redalert/init.cpp:753` | Skips the Allied/Soviet message box entirely |
+| `redalert/init.cpp:797` | Side then falls out of `CurrentCD`; `Choose_Side` leaves it 1 when its movie is skipped → `SCU01EA.INI`, Soviet |
+
+`IsFromInstall` means "the player has just come out of the installer." The DOS original used it
+to drop a first-time player into the campaign rather than into a menu they had never seen. That
+was reasonable in 1996 and is wrong here.
+
+**Why it recurs rather than happening once.** `redalert.ini` lives in the app's private storage,
+which Android destroys on uninstall. Michael's was wiped earlier the same day when the debug
+build was uninstalled to install the release (F-20). Every reinstall re-arms it — and every
+Play Store user's very first launch would hit it.
+
+**Fix: force the flag false on Android in both engines**, at the point it is read from the
+config. Tiberian Dawn carries the same flag and the same risk, so both were changed rather than
+only the one that was reported.
+
+The first-run path is skipped entirely, so a first launch now behaves exactly like every later
+one: title picker, main menu, difficulty, side choice. That consistency is what Michael asked
+for, and it is what makes the app comprehensible to someone who has never seen it.
+
+**What this gives up.** The forced intro movie on a genuinely fresh install no longer plays
+automatically. It remains reachable from the main menu, and the app's own title picker is now
+unambiguously the front door.
+
+**Verification status, stated honestly.** The change is compile-verified and installed, and Red
+Alert was observed running stable for 28 seconds afterwards with an empty crash buffer — the
+regression check. The first-run path itself has **not** been exercised on device, because doing
+so requires a fresh install, which would destroy 951 MB of Michael's game data for a cosmetic
+test. The fix is unconditional on Android and cannot be bypassed by config state, so there is
+no branch left in which the old behaviour can occur.
+
+**Where this actually matters.** Michael cannot easily observe the difference any more — his
+config now records `PlayIntro=false`, so he would reach the main menu either way. This fix is
+for everybody else's first launch, which is precisely the scenario a store listing creates.

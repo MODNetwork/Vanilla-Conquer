@@ -439,7 +439,32 @@ int main(int argc, char** argv)
         **	configuration file says "no", then don't run the intro.
         */
         if (!Special.IsFromInstall) {
+#ifdef __ANDROID__
+            /*
+            **	D-45: never take the first-run path on Android.
+            **
+            **	IsFromInstall means "the player just finished the installer", and
+            **	the DOS original used it to drop them straight into the campaign
+            **	rather than make them navigate a menu they had not seen yet. It
+            **	defaults TRUE when no config file exists.
+            **
+            **	On Android there is no installer to have just finished, and the
+            **	app's own title picker already IS the front door. Worse, the flag
+            **	does not merely skip the intro - it suppresses the main menu, the
+            **	difficulty dialog and the side-choice prompt, so a first launch
+            **	drops the player into mission one with no menu and no choices and
+            **	looks broken. Michael hit exactly that on Red Alert and reported
+            **	it as a bug, which is the correct reading of the symptom.
+            **
+            **	The config file lives in private storage and is destroyed by any
+            **	uninstall, so this is not a once-ever event: it recurs on every
+            **	reinstall. Forcing it false makes the first launch behave like
+            **	every later one.
+            */
+            Special.IsFromInstall = false;
+#else
             Special.IsFromInstall = ini.Get_Bool("Intro", "PlayIntro", true);
+#endif
         }
         SlowPalette = ini.Get_Bool("Options", "SlowPalette", false);
 

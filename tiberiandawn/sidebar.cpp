@@ -144,6 +144,7 @@ void const* SidebarClass::SidebarShape2;
  *=============================================================================================*/
 SidebarClass::SidebarClass(void)
     : IsSidebarActive(false)
+    , IsSidebarUserHidden(false) // D-42
     , IsToRedraw(true)
     , IsRepairActive(false)
     , IsUpgradeActive(false)
@@ -253,6 +254,16 @@ void SidebarClass::Init_Clear(void)
 
     Column[0].Init_Clear();
     Column[1].Init_Clear();
+
+    /*
+    **	D-42: clear the manual-hide intent on every mission reset.
+    **
+    **	Without this the flag would outlive the mission it was set in, and
+    **	Activate(1) would keep refusing for the rest of the session - the
+    **	sidebar would never come back and the game would be unplayable. Cleared
+    **	BEFORE Activate below so nothing can block that call.
+    */
+    IsSidebarUserHidden = false;
 
     Activate(false);
 }
@@ -1027,9 +1038,24 @@ bool SidebarClass::Activate(int control)
     switch (control) {
     case -1:
         IsSidebarActive = IsSidebarActive == false;
+        /*
+        **	D-42: record the player's intent. Hiding by hand must survive the
+        **	engine's automatic re-activation below, which is what made TAB look
+        **	like a dead key.
+        */
+        IsSidebarUserHidden = (IsSidebarActive == false);
         break;
 
     case 1:
+        /*
+        **	D-42: do not fight the player. Something re-activates the sidebar
+        **	shortly after any manual hide - measured on device as active before
+        **	all twelve of twelve consecutive toggles - so an unconditional
+        **	Activate(1) here silently undoes the toggle.
+        */
+        if (IsSidebarUserHidden) {
+            return (old);
+        }
         IsSidebarActive = true;
         break;
 

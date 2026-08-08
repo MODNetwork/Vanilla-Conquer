@@ -729,21 +729,11 @@ void Keyboard_Process(KeyNumType& input)
     }
 
     /*
-    **	D-41: toggle the GAME's build sidebar with TAB, from D-pad right. See
-    **	the matching block in tiberiandawn/conquer.cpp for the full reasoning.
-    **	Short version: the stock handler sits in SidebarClass::AI, which is fed
-    **	by the gadget layer and does not fire on Android; Keyboard_Process is fed
-    **	straight from the key buffer and does.
-    **
-    **	Red Alert's own handler is gated on Options.ToggleSidebar
-    **	(redalert/sidebar.cpp), which defaults true (options.cpp) and forces the
-    **	sidebar permanently on when false. That gate is honoured rather than
-    **	overridden - with it off, Red Alert is meant to keep the sidebar up.
+    **	D-42: TAB is deliberately NOT handled here - see the matching note in
+    **	tiberiandawn/conquer.cpp. SidebarClass::AI already owns the toggle and
+    **	runs first, so a handler here would toggle a second time on the same
+    **	press and cancel itself out.
     */
-    if (key != 0 && key == KN_TAB && Options.ToggleSidebar) {
-        Map.SidebarClass::Activate(-1);
-        input = KN_NONE;
-    }
 
     /*
     **	Scrolls the sidebar up one slot.

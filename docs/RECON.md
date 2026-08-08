@@ -1082,3 +1082,61 @@ than grepping a full dump, and `force-stop` with the pid confirmed empty before 
 **Prevention rule.** An absent log line is never evidence on its own. Before drawing any
 conclusion from silence, prove the capture path works by finding a line that is known to
 be there. F-11 established this and it was not applied.
+
+
+---
+
+## F-19 - Four rounds spent chasing a bug I had just written
+
+**Symptom.** D-pad right sent TAB to toggle the game's build sidebar. Nothing happened.
+Across four passes the sidebar never moved, and the state read `active=1` before every one
+of twelve consecutive presses.
+
+**What was ruled out, correctly, with evidence:**
+
+- The controller sends it. `CONTROLLER: button 14 -> scancode 43`, logged.
+- The engine receives it. `KP: input=0x002B` - exactly `KN_TAB`, logged.
+- It fires once per press, not twice. The release arrives as `0x082B` and does not match.
+- The two early-outs in `Activate()` - `GAME_GLYPHX_MULTIPLAYER` and `AllowAttract` - are
+  both false in this build.
+- Nothing in `common/` consumes TAB by name.
+- The native library was rebuilt after every edit; timestamps checked each time.
+
+**Root cause: I introduced it in D-40 and then debugged it as though it were pre-existing.**
+
+`SidebarClass::AI` (sidebar.cpp) already toggles the sidebar on `KN_TAB`, and it runs
+*first* - `GScreenClass::Input` calls `AI(key, x, y)` before conquer.cpp reaches
+`Keyboard_Process` with the same key. Adding a second handler in `Keyboard_Process` meant
+every press toggled twice: off, then straight back on. Net zero, every time.
+
+The stock handler had been working the whole time. My "fix" was the defect.
+
+**How the wrong theory survived four rounds.** Each round produced a plausible mechanism -
+the gadget layer intercepting keys, two separate key paths, automatic re-activation by
+`SidebarClass::Add` - and each was investigated as though the code under test were
+untouched. The one hypothesis never written down was *"the change I made last round caused
+this."* Section 3.7 requires listing hypotheses before testing them; the list was never
+written, so the most likely candidate was never on it.
+
+**A wrong claim was also published on the strength of it.** D-40's commit message asserted
+that this engine has "two key paths" and that `Keyboard_Process` is fed straight from the
+buffer while the AI chain is not. That is false - `GScreenClass::Input` produces one key
+and hands the same value to both. It was inferred from the symptom rather than read from
+the source, and it is corrected here.
+
+**Prevention rules.**
+
+1. When something breaks, the first hypothesis is always the most recent change - including,
+   and especially, one made to fix the same symptom. Write it down before testing anything
+   else.
+2. Two failed fix attempts on one symptom means stop and re-read the code being modified in
+   full, rather than adding a third mechanism on top. Section 3.8 says this; it was not
+   applied until the fourth round.
+3. Before adding a handler for a key, grep the whole engine for that key first. `KN_TAB`
+   appeared in `sidebar.cpp` in the very first search of this investigation and was read as
+   "the stock handler that does not work" instead of "the handler that already owns this key."
+
+**Also on record:** a screenshot taken 3 seconds after a toggle showed a stale frame, and
+was reported to Michael as "opens but does not close" when the build was in fact correct.
+He had to override that with his own observation. Screenshots of a live game are a lagging
+indicator; his gate report outranks them.

@@ -375,6 +375,21 @@ public:
     unsigned IsSidebarActive : 1;
 
     /*
+    **	D-42: the player deliberately hid the sidebar with TAB.
+    **
+    **	Tiberian Dawn was never built to keep the sidebar hidden. Something in
+    **	the engine turns it straight back on - proven on device, where the state
+    **	read as active before every one of twelve consecutive toggles - so a
+    **	plain toggle appears to do nothing at all.
+    **
+    **	Rather than hunt the specific caller, intent is recorded here and
+    **	Activate(1) honours it. That is robust whichever path re-enables the
+    **	sidebar, and it matches how Red Alert already behaves through its own
+    **	Options.ToggleSidebar. Pressing TAB again clears it.
+    */
+    unsigned IsSidebarUserHidden : 1;
+
+    /*
     **	This flag tells the rendering system that the sidebar needs to be redrawn.
     */
     unsigned IsToRedraw : 1;

@@ -699,29 +699,20 @@ void Keyboard_Process(KeyNumType& input)
     }
 
     /*
-    **	D-41: toggle the GAME's build sidebar with TAB, handled HERE rather than
-    **	where the engine originally put it. Reached from D-pad right.
+    **	D-42: TAB is deliberately NOT handled here, and must not be added.
     **
-    **	The stock handler is in SidebarClass::AI (sidebar.cpp) and does not fire
-    **	on Android. Verified, not assumed: the controller was logged sending
-    **	scancode 43 (KN_TAB) ten times with no effect, while the only two
-    **	early-outs on that path - GAME_GLYPHX_MULTIPLAYER and AllowAttract - are
-    **	both false here.
+    **	It was, briefly, and that was the whole bug. SidebarClass::AI
+    **	(sidebar.cpp) already toggles the sidebar on KN_TAB, and it runs FIRST:
+    **	GScreenClass::Input calls AI(key,...) before conquer.cpp reaches
+    **	Keyboard_Process with the same key. A second handler here therefore
+    **	toggled a second time on the same press - off, then straight back on -
+    **	so the sidebar never appeared to move and the state read active=1 before
+    **	every one of twelve consecutive presses.
     **
-    **	The cause is that this engine has TWO key paths. Keyboard_Process takes
-    **	its key straight from the buffer, and every binding routed through it
-    **	works. SidebarClass::AI is reached from GScreenClass::Input, which takes
-    **	its key from Buttons->Input() whenever a gadget list is active - and in a
-    **	mission the sidebar strips register into exactly that list, so keys handed
-    **	to the AI chain pass through the gadget layer first.
-    **
-    **	This is not new behaviour: it is the engine's own TAB binding, calling
-    **	the same Activate(-1), moved onto the path that demonstrably works.
+    **	Recorded here rather than deleted silently, because the obvious reading
+    **	of that symptom - "the key is not arriving" - is wrong, and disproving it
+    **	cost several rounds. The key arrives. It was being handled twice.
     */
-    if (key != 0 && key == KN_TAB) {
-        Map.SidebarClass::Activate(-1);
-        input = KN_NONE;
-    }
 
     /*
     **	Scrolls the sidebar up one slot.

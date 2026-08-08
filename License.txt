@@ -1,3 +1,23 @@
+================================================================================
+EA has not endorsed and does not support this product.
+================================================================================
+
+Added by the Command Post project, above and without altering any text below.
+Required verbatim by the Command & Conquer Franchise Modding Guidelines
+(https://www.ea.com/games/command-and-conquer/modding-faq).
+
+This is a MODIFIED version of the program, not the original. Command & Conquer,
+Tiberian Dawn, Red Alert and Westwood Studios are trademarks of Electronic Arts
+Inc. This project is not affiliated with, endorsed by, or sponsored by
+Electronic Arts. No Electronic Arts game assets are included in this repository
+or in any build produced from it.
+
+Everything below this block is the original licence text as received, including
+Electronic Arts' additional terms under GPL v3 section 7. Nothing in it has been
+removed or changed.
+
+================================================================================
+
 Electronic Arts Inc. released only TiberianDawn.dll and RedAlert.dll and 
 their corresponding source code under the GPL V3 below, with additional 
 terms at the bottom.    

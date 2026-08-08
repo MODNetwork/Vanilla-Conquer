@@ -1,5 +1,13 @@
 # Command Post
 
+> ## EA has not endorsed and does not support this product.
+>
+> This statement is required by the [Command & Conquer Franchise Modding
+> Guidelines](https://www.ea.com/games/command-and-conquer/modding-faq) and is reproduced
+> verbatim. Command & Conquer, Tiberian Dawn, Red Alert and Westwood Studios are trademarks
+> of Electronic Arts Inc. This project is not affiliated with, endorsed by, or sponsored by
+> Electronic Arts.
+
 A native Android port of **Command & Conquer: Tiberian Dawn** and **Command & Conquer: Red Alert**,
 built on the [Vanilla-Conquer](https://github.com/Vanilla-Conquer/Vanilla-Conquer) engine.
 

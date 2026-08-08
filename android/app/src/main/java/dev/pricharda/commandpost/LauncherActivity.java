@@ -142,7 +142,80 @@ public class LauncherActivity extends Activity {
         return b;
     }
 
+    /**
+     * D-44: sentinel files proving a title's game data is present.
+     *
+     * The engine opens seventeen .MIX archives for Tiberian Dawn and twenty-one
+     * for Red Alert, but it does NOT need all of them - modern GOG and
+     * Remastered layouts pack most content into a few large archives. Michael's
+     * own working Red Alert install has six files. Requiring the full list
+     * would reject valid installs, so each title is probed with the one archive
+     * the engine caches during init and genuinely cannot start without.
+     *
+     * Red Alert accepts either name because the two common layouts differ.
+     */
+    private static String[] sentinelsFor(String engine) {
+        if ("vanillara".equals(engine)) {
+            return new String[] {"REDALERT.MIX", "MAIN.MIX"};
+        }
+        return new String[] {"CONQUER.MIX"};
+    }
+
+    /** True when at least one sentinel archive for this title is readable. */
+    private boolean hasGameData(String engine) {
+        final java.io.File dir = new java.io.File(getExternalFilesDir(null), engine);
+        for (String name : sentinelsFor(engine)) {
+            final java.io.File f = new java.io.File(dir, name);
+            if (f.isFile() && f.length() > 0 && f.canRead()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * D-44: explain missing game data instead of crashing on it.
+     *
+     * Without its .MIX archives the engine does not degrade - it dereferences a
+     * null file handle and takes the process down. That was observed twice
+     * during development, on both the debug and release builds, and it is what
+     * every first-time installer would have seen: an instant crash with no
+     * explanation. Dolphin and ScummVM both show a "no games found" screen for
+     * exactly this reason.
+     *
+     * The wording states plainly that the game must be owned. This app ships no
+     * game content, cannot be made to, and points at no source for obtaining
+     * any.
+     */
+    private void showMissingDataDialog(final String engine) {
+        final String title = "vanillara".equals(engine) ? "Red Alert" : "Tiberian Dawn";
+        final java.io.File dir = new java.io.File(getExternalFilesDir(null), engine);
+
+        new android.app.AlertDialog.Builder(this)
+            .setTitle("No " + title + " game data found")
+            .setMessage(
+                "Command Post is a game engine. It contains no game content and "
+                + "cannot play anything on its own.\n\n"
+                + "To play " + title + " you must already own it, and copy that "
+                + "copy's data files into:\n\n"
+                + dir.getAbsolutePath() + "\n\n"
+                + "Expected: " + android.text.TextUtils.join(" or ", sentinelsFor(engine))
+                + ", plus the other .MIX files from your copy.\n\n"
+                + "This app does not supply game files and does not link to "
+                + "anywhere that does. Where you obtain them is your "
+                + "responsibility.")
+            .setPositiveButton("OK", null)
+            .show();
+    }
+
     private void launch(String engine) {
+        // D-44: check before starting the engine. Once SDL_main is running a
+        // missing archive is a segfault, not a message.
+        if (!hasGameData(engine)) {
+            showMissingDataDialog(engine);
+            return;
+        }
+
         final Intent intent = new Intent(this, CommandPostActivity.class);
         intent.putExtra(CommandPostActivity.EXTRA_ENGINE, engine);
 

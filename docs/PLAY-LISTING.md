@@ -25,14 +25,21 @@ Command Post
 ### Short description (80 character limit)
 
 ```
-Classic RTS engine for Android. Bring your own game files. No data included.
+You must own the game. Engine only - contains nothing playable on its own.
 ```
-*75 characters.*
+*73 characters.*
 
-**Deliberately does not name the games.** The short description is the highest-visibility
-field and the one most likely to be read as promotional. EA's guidelines permit plain text
-identifying which game a project is for, so naming them is allowed — but keeping the games
-out of the headline and into the body is the more conservative placement, and costs nothing.
+**Revised on Michael's instruction to be blunter, and it is the right call.** The previous
+wording ("bring your own game files") could be misread as being about save files. It is not:
+the `.MIX` archives are the entire game — art, audio, video, missions and rules — and without
+them the app cannot start a mission at all. Somebody who does not own the game gets nothing
+from installing this, and the highest-visibility field in the listing should say so before
+they install rather than after.
+
+**Deliberately does not name the games.** The short description is the field most likely to be
+read as promotional. EA's guidelines permit plain text identifying which game a project is for,
+so naming them is allowed — but keeping the titles in the body rather than the headline is the
+more conservative placement and costs nothing.
 
 ### Full description (4000 character limit)
 

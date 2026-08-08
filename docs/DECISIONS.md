@@ -1042,3 +1042,73 @@ release build, and are kept only as insurance if a save-import path is ever adde
   that collide by filename with Tiberian Dawn's. The missions are playable.
 - Saves do not survive an uninstall, which is required to move between debug and release
   builds because they are signed with different keys.
+
+
+---
+
+## D-44 - Missing game data explains itself instead of crashing
+
+**Michael's question, which found this:** *"does this app permit play on my game without them
+purchasing the game - they just need to bring their player/game data over if they want their
+save data to persist?"*
+
+**The answer is no, and the question exposed a real defect.** The `.MIX` archives are the
+entire game - art, audio, video, mission scripts, balance rules. Save games are a separate
+160 KB file in private storage and are irrelevant to whether the app runs at all. Without the
+archives the engine does not degrade gracefully; `init.cpp:417` does `new MFCD("CONQUER.MIX")`
+during startup and a missing archive becomes a null dereference.
+
+**This was observed twice during this session, on both build types**, when a botched data
+restore left the files unreadable (F-20). Every first-time installer would have seen exactly
+that: an instant crash, no explanation, no idea the app needs anything. On a public listing
+that is one-star reviews on day one, and Google treats crash-on-launch as a quality failure in
+its own right. Dolphin and ScummVM both ship a "no games found" screen for this reason.
+
+**The check lives in `LauncherActivity.launch()`, before the engine starts.** Once `SDL_main`
+is running a missing archive is a segfault, not a message, so the check has to happen on the
+Java side while there is still a UI to show.
+
+**Sentinel files, not a full manifest.** The engine opens seventeen archives for Tiberian Dawn
+and twenty-one for Red Alert, but does not require all of them - modern GOG and Remastered
+layouts pack most content into a few large files. Michael's own working Red Alert install has
+**six**. Requiring the full list would have rejected his valid install, so each title is probed
+with the archive the engine actually caches at init:
+
+| Title | Sentinel | Rationale |
+|---|---|---|
+| Tiberian Dawn | `CONQUER.MIX` | Cached at `init.cpp:511`; the engine cannot start without it |
+| Red Alert | `REDALERT.MIX` **or** `MAIN.MIX` | Either satisfies it - the two common layouts differ |
+
+This was checked against the real install rather than derived from the source list alone.
+Deriving it from source would have produced a check that rejected the only known-good copy.
+
+**The dialog states plainly that the game must be owned**, names the exact directory, and says
+the app does not supply game files and links to nowhere that does. That last sentence is not
+decoration: `COUNSEL-BRIEFING.md` §6 identifies content-acquisition, not licensing, as the most
+likely Play policy objection.
+
+**Also revised: the store short description**, on Michael's instruction, from "bring your own
+game files" to **"You must own the game. Engine only - contains nothing playable on its own."**
+The old wording could be misread as being about save files. The highest-visibility field in the
+listing should make it impossible to install this under a misapprehension.
+
+### On bundling the game data - asked and declined
+
+Michael asked whether his own copy could be shipped inside the app so others could play without
+owning it. It cannot, and this is not a close call.
+
+EA's release covers the engine only. `License.txt`, first sentence: *"Electronic Arts Inc.
+released only TiberianDawn.dll and RedAlert.dll and their corresponding source code under the
+GPL V3."* EA's modding policy is explicit that C&C assets *"including game code, art, music,
+and all other content, are and shall remain the sole and exclusive property of EA."* Owning a
+copy licenses use, not redistribution.
+
+Shipping those files would be copyright infringement, would breach the modding guidelines, and
+would destroy the single architectural fact that makes this project defensible at all - that it
+contains no EA assets and cannot be made to. The asset wall is not a preference to be traded
+away for convenience; it is the foundation everything else in `COUNSEL-BRIEFING.md` rests on.
+
+**Verification status.** The build compiles and installs, and the sentinel choice is confirmed
+against a real working install of both titles. The dialog itself has **not** been seen on
+device - Michael's phone was locked and unlocking it was not mine to do. Unverified until he
+gates it.

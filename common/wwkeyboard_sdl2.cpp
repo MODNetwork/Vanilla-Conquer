@@ -52,26 +52,12 @@ void WWKeyboardClassSDL2::Update_Touch_Gesture()
 }
 
 /*
-** Report how long the scroll request has been continuously active. If the view
-** stops moving while this keeps climbing, the platform layer is doing its job
-** and the limit is inside the engine (scenario bounds or shroud), not here.
+** D-46: Log_Pan_State removed. It reported scroll state twice a second for the
+** whole duration of every pan, and the question it existed to answer - whether
+** a stalled view meant the platform layer had stopped requesting scroll or the
+** engine had hit a scenario bound - was settled when panning passed its gate.
+** PanFrameCount existed solely to feed it and went with it.
 */
-void WWKeyboardClassSDL2::Log_Pan_State()
-{
-    if (TouchMode != TOUCH_PAN) {
-        PanFrameCount = 0;
-        return;
-    }
-
-    ++PanFrameCount;
-
-    if ((PanFrameCount % 30) == 0) {
-        DBG_INFO("TOUCH: PAN active frame %u  scrollActive=%d dir=%u",
-                 (unsigned)PanFrameCount,
-                 (int)AnalogScrollActive,
-                 (unsigned)ScrollDirection);
-    }
-}
 
 void WWKeyboardClassSDL2::Handle_Finger_Event(const SDL_TouchFingerEvent& finger, uint32_t type)
 {
@@ -313,7 +299,6 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
 {
 #ifdef __ANDROID__
     Update_Touch_Gesture();
-    Log_Pan_State();
 #endif
 #ifdef NETWORKING
     Process_Network();
@@ -327,17 +312,11 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
             exit(0);
             break;
         case SDL_KEYDOWN:
-#ifdef __ANDROID__
-            // Instrumentation for the D-31 command bar audit. Every button on
-            // that bar arrives here as an ordinary SDL_KEYDOWN, so this is the
-            // one place that can distinguish "the key never arrived" from "the
-            // key arrived and the engine ignored it" - two failures that look
-            // identical from the player's side.
-            DBG_INFO("KEY: scancode=%d sym=%d mod=0x%04X",
-                     (int)event.key.keysym.scancode,
-                     (int)event.key.keysym.sym,
-                     (unsigned)event.key.keysym.mod);
-#endif
+            // D-46: the D-31 audit probe that logged every scancode here is
+            // retired. It fired on every keystroke and its question - whether a
+            // command bar key arrived at all - was answered when D-31 passed.
+            // If a binding is ever suspect again this is still the one place
+            // that can separate "never arrived" from "arrived and was ignored".
             Put_Key_Message(event.key.keysym.scancode, false);
             break;
         case SDL_KEYUP:
@@ -372,14 +351,10 @@ void WWKeyboardClassSDL2::Fill_Buffer_From_System(void)
             ** rather than TO it - so it drifts further away on every tap.
             ** Real pointing devices (a mouse over USB/BT) keep relative.
             */
-            DBG_INFO("TOUCHDBG motion which=%u (TOUCH=%u) x=%d y=%d xrel=%d yrel=%d",
-                     (unsigned)event.motion.which,
-                     (unsigned)SDL_TOUCH_MOUSEID,
-                     event.motion.x,
-                     event.motion.y,
-                     event.motion.xrel,
-                     event.motion.yrel);
-
+            // D-46: the TOUCHDBG probe here fired on every motion event, which
+            // is continuous while a finger or stick is moving. The distinction
+            // it was written to prove - touch arriving as synthesised relative
+            // motion - is now permanently encoded in the branch below.
             if (event.motion.which == SDL_TOUCH_MOUSEID) {
                 Set_Video_Mouse_Absolute(event.motion.x, event.motion.y);
                 break;
@@ -624,7 +599,6 @@ void WWKeyboardClassSDL2::Handle_Controller_Axis_Event(const SDL_ControllerAxisE
         if (held != LeftTriggerHeld) {
             LeftTriggerHeld = held;
             Put_Key_Message(SDL_SCANCODE_LCTRL, !held);
-            DBG_INFO("CONTROLLER: Ctrl %s", held ? "down" : "up");
         }
     }
 
@@ -842,36 +816,21 @@ void WWKeyboardClassSDL2::Handle_Controller_Button_Event(const SDL_ControllerBut
     }
 
     /*
-    ** D-36: log every press. This is what turns "that button did nothing" into
-    ** a one-glance answer, and it distinguishes the three things that look
-    ** identical from the outside: the button never arrived (no line at all),
-    ** it arrived and sent the wrong key (line shows the wrong scancode), or it
-    ** sent the right key and the engine ignored it (line is correct).
-    ** Presses only - a release line for every press would double the noise and
-    ** tell us nothing extra.
+    ** D-46: the D-36/D-37 press logger is retired. It fired on every controller
+    ** button and reported the SDL index, what was sent, the click position and
+    ** the in_game state.
+    **
+    ** It earned its place while it lived - it proved the mapping was correct
+    ** and forced the search for the real fault elsewhere, which is how D-42 was
+    ** eventually found. That question is answered and the mapping is gated, so
+    ** it is now only volume. Log noise pushed genuinely useful lines out of the
+    ** ring buffer three separate times during this work (F-11, F-17, F-20), and
+    ** that is a real cost, not a tidiness preference.
+    **
+    ** If a button is ever suspect again, the probe belongs exactly here, and it
+    ** wants all four fields - the position is what separates "the control did
+    ** not respond" from "the cursor was not on it".
     */
-    if (button.state == SDL_PRESSED) {
-        /*
-        ** D-37: mouse presses now report WHERE they landed, in game
-        ** coordinates. "The sidebar does not respond" and "the cursor was not
-        ** on the sidebar" look identical from the outside and need completely
-        ** different fixes. In Tiberian Dawn's 640x400 the tactical map ends and
-        ** the sidebar begins around x=480, so the number alone answers it.
-        */
-        if (mousePress) {
-            int lx, ly;
-            Get_Video_Mouse(lx, ly);
-            DBG_INFO("CONTROLLER: button %d -> mousebtn %d at %d,%d (in_game=%s)",
-                     button.button, (int)key, lx, ly, in_game ? "yes" : "no");
-        } else {
-            DBG_INFO("CONTROLLER: button %d -> %s %d (in_game=%s)",
-                     button.button,
-                     keyboardPress ? "scancode" : "UNMAPPED",
-                     keyboardPress ? (int)scancode : -1,
-                     in_game ? "yes" : "no");
-        }
-    }
-
     if (keyboardPress) {
         Put_Key_Message(scancode, button.state == SDL_RELEASED);
     } else if (mousePress) {

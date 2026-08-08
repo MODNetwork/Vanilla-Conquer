@@ -429,12 +429,14 @@ void Keyboard_Process(KeyNumType& input)
     KeyNumType plain = (KeyNumType)(input & ~(WWKEY_SHIFT_BIT | WWKEY_ALT_BIT | WWKEY_CTRL_BIT));
     KeyNumType key = KeyNumType(input & ~WWKEY_VK_BIT);
 
-#ifdef __ANDROID__
+#if 0
     /*
-    ** D-31 command bar audit. The command bar's keys provably reach the SDL
-    ** layer with the right scancodes, so if a command does nothing the fault is
-    ** at or after this point. Logging all three comparison bases because the
-    ** handlers below do not agree on one: team keys test `plain`, while the
+    ** D-46: retired. This fired on EVERY keypress during gameplay and its
+    ** question - do the command bar's keys arrive with the right scancodes -
+    ** was answered when D-31 passed. Left disabled rather than deleted because
+    ** it is the right probe if a key binding is ever suspect again, and
+    ** rebuilding it from scratch means rediscovering that the handlers below do
+    ** not agree on one comparison basis: team keys test `plain`, while the
     ** unit orders test `key`, and only one of those strips WWKEY_VK_BIT.
     */
     DBG_INFO("KP: input=0x%04X plain=0x%04X key=0x%04X (KN_1=0x%04X KN_S=0x%04X)",

@@ -710,17 +710,13 @@ void Set_Video_Mouse_Absolute(int win_x, int win_y)
     hwcursor.X = gx;
     hwcursor.Y = gy;
 
-    DBG_INFO("TOUCHMAP win %d,%d -> game %d,%d  dst %dx%d@%d,%d  game %dx%d",
-             win_x,
-             win_y,
-             (int)gx,
-             (int)gy,
-             render_dst.w,
-             render_dst.h,
-             render_dst.x,
-             render_dst.y,
-             hwcursor.GameW,
-             hwcursor.GameH);
+    /*
+    ** D-46: the TOUCHMAP line that logged every window-to-game coordinate
+    ** conversion is retired. It fired on every touch and every cursor placement
+    ** - continuously during a drag - and the mapping it was written to verify
+    ** has been correct through every gate since, including on a foldable that
+    ** changes panel size mid-session.
+    */
 }
 
 /*
